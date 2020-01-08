@@ -21,16 +21,6 @@ calculateDiscreteContinuousMI = function(df, groupXVar, valueYVar, method="KWind
   )
 }
 
-collectDf = function(df, collect) {
-  if ("tbl_sql" %in% class(df)) {
-    if (collect) {
-      df %>% collect()
-    } else {
-      stop("This implementation does not support dbplyr data frames")
-    }
-  }
-  df
-}
 
 #' calculate mutual information between a categorical value (X) and a continuous value (Y)
 #' 

@@ -42,5 +42,5 @@ $$I__mm = I__emp + (|X| - 1)/2N + (|Y| - 1)/2N - (|XY| - 1)/2N$$
 
 $$I__mm = I__emp + (|X| + |Y| - |XY| - 1)/2N$$
 
-This is a Miller-Maddow adjustment.
+This is a Miller-Madow adjustment.
 }

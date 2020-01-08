@@ -95,15 +95,6 @@ calculateEntropy_MontgomerySmith = function(df, groupVars, orderingVar = NULL, .
   
 }
 
-digammaLookup = tibble(n = c(1:50), digamma = digamma(c(1:50)))
-
-calculateDigamma = function(df, inputVar, outputVar) {
-  inputVar = ensym(inputVar)
-  outputVar = ensym(outputVar)
-  tmp = df %>% 
-    left_join(digammaLookup %>% rename(!!inputVar := n, !!outputVar := digamma), by=as.character(inputVar), copy=TRUE) %>%
-    mutate(!!outputVar := ifelse(is.na(!!outputVar), log(!!inputVar-1) + 1.0/(2*(!!inputVar-1) - 1.0/(12*(!!inputVar-1)^2) ), !!outputVar))
-}
 
 #' calculate entropy of an optionally discrete value (X) using a histogram approach
 #' 
@@ -148,6 +139,8 @@ calculateEntropy_Histogram = function(df, groupVars, mm=TRUE, ...) {
 #' @param df - may be grouped, in which case the grouping is interpreted as different types of discrete variable
 #' @param groupVars - the columns of the discrete value quoted by the vars() function (e.g. ggplot facet_wrap)
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
+#' @import dplyr
+#' @export
 calculateEntropy_Grassberger = function(df, groupVars, ...) {
   grps = df %>% groups()
   # groupVars = ensyms(groupVars)
@@ -181,6 +174,8 @@ calculateEntropy_Grassberger = function(df, groupVars, ...) {
 #' @param infoTheoMethod - the method of the entropy estimator ("mm","emp","shrink","sg")
 #' @param collect - if false (the default) this will fail on a dbplyr table as this is not supported in SQL
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
+#' @import dplyr
+#' @export
 calculateEntropy_InfoTheo = function(df, groupVars, infoTheoMethod="mm", collect=FALSE, ...) {
   df = collectDf(df,collect)
   grps = df %>% groups()
@@ -218,6 +213,8 @@ calculateEntropy_InfoTheo = function(df, groupVars, infoTheoMethod="mm", collect
 #' @param orderingVar - (optional) the column of an ordering variable (e.g. time) - if missing assumes df order,
 #' @param collect - if TRUE will collect dbplyr tables before processing, otherwise (the default) will fail on dbplyr tables
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
+#' @import dplyr
+#' @export
 calculateEntropy_Compression = function(df, groupVars, orderingVar = NULL, collect=FALSE, ...) {
   df = collectDf(df,collect)
   grps = df %>% groups()

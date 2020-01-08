@@ -22,7 +22,7 @@
 #' 
 #' $$I__mm = I__emp + (|X| + |Y| - |XY| - 1)/2N$$
 #' 
-#' This is a Miller-Maddow adjustment.
+#' This is a Miller-Madow adjustment.
 #' 
 #' @param df a dataframe containing 2 columns defining class of event X and class of event Y and either one row per event, 
 #' or a count of observations, for each class combination. 

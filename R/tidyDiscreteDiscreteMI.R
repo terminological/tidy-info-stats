@@ -30,6 +30,7 @@ calculateMultiClassMI = function(df, adjust=TRUE) {
 #' @param method - the method employed - valid options are "Empirical","MontgomerySmith","Compression","Histogram","Entropy","Grassberger"
 #' @param ... - the other parameters are passed onto the implementations
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @export
 calculateDiscreteDiscreteMI =  function(df, groupXVar, groupYVar, method="Empirical", ...) {
   groupXVar = ensym(groupXVar)
   groupYVar = ensym(groupYVar)
@@ -51,6 +52,7 @@ calculateDiscreteDiscreteMI =  function(df, groupXVar, groupYVar, method="Empiri
 #' @param groupYVar - the column of the discrete value (Y)
 #' @param adjust - Apply a miller-madow adjustement to the result (default: TRUE)
 #' @return a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @export
 calculateDiscreteDiscreteMI_Empirical = function(df, groupXVar, groupYVar, adjust=TRUE, ...) {
   df %>% probabilitiesFromGroups({{groupXVar}}, {{groupYVar}}) %>% calculateMultiClassMI(adjust=adjust)
 }
@@ -62,6 +64,7 @@ calculateDiscreteDiscreteMI_Empirical = function(df, groupXVar, groupYVar, adjus
 #' @param groupYVar - the column of the discrete value (Y)
 #' @param entropyMethod - the method used to calculate the entropy (see ?tidyinfostats::calculateEntropy) - defaults to "Grassberger"
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @export
 calculateDiscreteDiscreteMI_Entropy = function(df, groupXVar, groupYVar, entropyMethod="Grassberger", ...) {
   groupXVar = ensym(groupXVar)
   groupYVar = ensym(groupYVar)

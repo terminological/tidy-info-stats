@@ -26,6 +26,7 @@ discretise = function(df, continuousVar, discreteOutputVar, method, ...) {
 #' in particular the mean and sd of the observed data (in a group by group fashion)
 #' 
 #' @param bins - the number of bins to create out of the centiles of a log normal distribution
+#' @export
 logNormalCentiles = function(bins) {
   return(
     function(mean,sd,...) {
@@ -45,6 +46,7 @@ logNormalCentiles = function(bins) {
 #' in particular the minimum and maximum value of the observed data (in a group by group fashion)
 #' 
 #' @param bins - the number of bins to create for each group
+#' @export
 fixedNumber = function(bins) {
   return(
     function(n,min,max, ...) {
@@ -62,6 +64,7 @@ fixedNumber = function(bins) {
 #' @param minBins - the smallest number of bins to create for each group
 #' @param maxBins - the largest number of bins to create for each group
 #' @param fn - the distribution function that genertes the cut points (e.g. tidyinfostats::fixedNumber (uniform), tidyinfostats::logNormalCentiles  )
+#' @export
 linearBySize = function(slope,minBins,maxBins, fn=fixedNumber) {
   return(
     function(n, ...) {
@@ -76,6 +79,7 @@ linearBySize = function(slope,minBins,maxBins, fn=fixedNumber) {
 #' in particular the minimum and maximum value of the observed data (in a group by group fashion)
 #' 
 #' @param width - the width of each bin
+#' @export
 fixedWidth = function(width) {
   return(
     function(min, max, ...) {
