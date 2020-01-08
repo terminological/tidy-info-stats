@@ -1,0 +1,138 @@
+---
+title: "Test estimate accuracy"
+output: html_document
+knit: (function(inputFile, encoding,...) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "~/Dropbox/featureSelection/tidyinfostats") })
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(standardPrintOutput)
+library(tidyinfostats)
+#devtools::load_all("..")
+set.seed(101)
+theme_set(standardPrintOutput::defaultFigureLayout())
+```
+
+
+
+
+## Experiment 2
+
+Objectives:
+
+* Assess bias in estimates versus MI
+** Random distributions
+** Plot estimated versus theoretical MI
+** Plot estimated versus theoretical Mean & Variance
+
+
+
+```{r}
+#devtools::load_all("..")
+summariseError2 = function(df) {
+  return(
+    df %>% filter(!is.na(relativeError)) %>% group_by(sample,distributions,param) %>% summarise(
+      theoretical = mean(theoretical, na.rm=TRUE),
+      rmse = sqrt(mean(absoluteError^2, na.rm=TRUE)),
+      mae = mean(absoluteError, na.rm=TRUE),
+      vae = var(absoluteError, na.rm=TRUE),
+      nmae = mean(relativeError, na.rm=TRUE),
+      nvae = var(relativeError, na.rm=TRUE),
+      median_ae = quantile(absoluteError, probs=c(0.5), names=FALSE, na.rm=TRUE),
+      upper_iqr_ae = quantile(absoluteError, probs=c(0.75), names=FALSE, na.rm=TRUE),
+      lower_iqr_ae = quantile(absoluteError, probs=c(0.25), names=FALSE, na.rm=TRUE)
+    )
+  )
+}
+
+experiment2 = function(reps,meth = c("KWindow","KNN","SGolay","DiscretiseByRank","DiscretiseByValue","Compression")) {
+  
+  set.seed(101)
+  result = NULL
+  
+  for (i in c(1:reps)) {
+    
+    ndist = sample(2:4,1)
+    distribution = ConditionalDistribution$new()$withRandomDistributions(ndist)
+    thMi = tryCatch(distribution$theoreticalMI(),error=function(e) return(NA))
+    #thMu = distribution$theoreticalMean()
+    #thSd = sqrt(distribution$theoreticalVariance())
+    
+    df = distribution$sample((sample.int(6,1)+1)*100)
+    
+    estMi = sapply(meth, function(m) calculateDiscreteContinuousMI(df, y, x, method = m) %>% pull(I))
+    #estMean = mean(df$x)
+    #estSd = sd(df$x)
+    
+    result = result %>% bind_rows(
+      tibble(
+        sample = rep(i,length(meth)),#+2),
+        distributions = rep(ndist,length(meth)),#+2),
+        sampleSize = rep(nrow(df),length(meth)),
+        param = meth,
+        theoretical = rep(thMi,length(meth)),
+        estimated = estMi,
+        #theoretical = c(rep(thMi,length(meth)),thMu,thSd),
+        #estimated = c(estMi,estMean,estSd),
+        absoluteError = estimated-theoretical,
+        relativeError = ifelse(theoretical<0.05,NA,absoluteError/theoretical)
+      )
+    )
+    
+  }
+  
+  return(result)
+}
+
+
+
+exp2adata = experiment2(1000)
+
+```
+
+```{r}
+# todo summarise experimental data
+# TODO: plot relative error vs. theoretical MI
+plotExperiment2 = function(df) {
+  # p3 = 
+  return(
+    ggplot(df %>% mutate(components=as.factor(distributions)), aes(x=theoretical,y=estimated,colour=as.factor(sampleSize)))+
+  		geom_point(size=2,stroke=0,alpha=0.2)+
+  		geom_abline(slope=1,intercept=0,colour="grey75")+
+  		coord_cartesian(ylim = c(0,1),xlim = c(0,1))+
+    	facet_wrap(vars(param),scales = "free")+labs(colour="Sample size")
+  )
+}
+```
+
+### Experiment 2 part one - Error plots
+
+```{r}
+plotExperiment2(exp2adata)
+standardPrintOutput::saveHalfPageFigure(filename="~/Dropbox/featureSelection/mutinfo/errorEstimatesVsTheoretical")
+```
+
+### Experiment 2 - part 2 
+
+Perform a paired t-test on prediction and theoretical value
+
+```{r}
+tmp2 = exp2adata %>% group_by(param) %>% group_modify(function(d,...) {
+    tResult = t.test(d$theoretical, d$estimated, paired=TRUE)
+    tibble(
+      effectSize = twoDp(tResult$estimate),
+      confidenceInt = paste0(twoDp(tResult$conf.int),collapse=", "),
+      pValue = twoDp(tResult$p.value)
+    )
+}) %>% rename(`Estimate`=param, Difference = effectSize, `Confidence interval`=confidenceInt, `P value` = pValue ) %>% ungroup() %>% standardPrintOutput::mergeCells() 
+tmp2
+tmp2 %>% standardPrintOutput::saveTable(filename = "~/Dropbox/featureSelection/mutinfo/adjustedError2")
+# ggplot(df, aes)
+```
+

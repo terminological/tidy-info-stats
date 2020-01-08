@@ -1,0 +1,93 @@
+---
+title: "Validation against infotheo library"
+output: html_document
+knit: (function(inputFile, encoding,...) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "~/Dropbox/featureSelection/tidyinfostats") })
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE
+)
+```
+
+```{r setup}
+library(infotheo)
+library(tidyverse)
+library(ggplot2)
+#library(devtools)
+library(tidyinfostats)
+#devtools::load_all("..")
+```
+
+The infotheo package contains a function to discretise and calculate the mutual information from a data set. Unfortunately it is not somewhat hard to use on tidy data and cannot be used with dbplyr tables without bringing them into memory.
+
+```{r}
+
+data(USArrests)
+dat<-discretize(USArrests)
+tidydat = dat %>% mutate(state = rownames(USArrests)) 
+tidydat
+```
+
+```{r}
+#computes the MIM (mutual information matrix)
+
+print("Class by class mutual information:")
+mutinformation(dat,method= "emp")
+mutinformation(dat,method="mm")
+
+print("Murder versus assault mutual information:")
+mutinformation(dat[,1],dat[,2])
+
+
+```
+
+The first step to a more dplyr friendly mutual information function is to calculate the probabilities of different outcomes. The probabilityFromGroups function counts outcomes defined by the arguments. It returns a complete confusion matrix for each combination of outcome observed. 
+
+```{r}
+tidydat %>% probabilitiesFromGroups(Murder,Assault)
+```
+
+Assuming the same discretised data we can calculate MIs for individual combinations using dplyr syntax. This is reiplemented in a way which allows it to be performed in SQL if
+a dbplyr table is provided
+
+```{r}
+
+tidydat %>% probabilitiesFromGroups(Murder,Assault) %>% calculateMultiClassMI() # should be the same as I2
+```
+
+However the more usual situation in tidy data is to not have a matrix as with the USArrests data but a longer format such as the following:
+
+```{r}
+tidydat2 = dat %>% 
+		mutate(state = rownames(USArrests)) %>%
+		pivot_longer(-state, names_to = "variable", values_to = "level")
+tidydat2 %>% head()
+```
+
+And in data from a database you are likely constructing a joint dataset through some sort of join, on a shared field. In this case we will use the same data for both sides
+
+```{r}
+# get a tidy version of the dat data - i.e. 
+lhs = tidydat2 %>% rename(variable1=variable, level1=level)
+rhs = tidydat2 %>% rename(variable2=variable, level2=level)
+tidydat3 =  lhs %>% inner_join(rhs, by="state")
+
+tidydat3 %>% head()
+```
+
+Using this data format it is more natural to group the data by the variables and determine the probabilities is a dplyr friendly way. To prove this is correct we reformat it to the same as the infotheo package
+
+```{r}
+t3 = tidydat3 %>% group_by(variable1,variable2) %>% probabilitiesFromGroups(level1,level2) %>% calculateMultiClassMI(adjust=FALSE)
+t3 %>% pivot_wider(names_from=variable2, values_from=I) # should be the same as I
+
+t4 = tidydat3 %>% group_by(variable1,variable2) %>% probabilitiesFromGroups(level1,level2) %>% calculateMultiClassMI(adjust=TRUE)
+t4 %>% pivot_wider(names_from=variable2, values_from=I) # should be the same as I
+```
+
+TODO:
+* document the binary MI with an example.
+* document the use of the other info stats for plotting ROC curve etc.
+

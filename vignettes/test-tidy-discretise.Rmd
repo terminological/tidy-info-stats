@@ -1,0 +1,98 @@
+---
+title: "Test tidyDiscretise"
+output: html_document
+knit: (function(inputFile, encoding,...) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "~/Dropbox/featureSelection/tidyinfostats") })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyinfostats)
+#devtools::load_all("..")
+set.seed(101)
+theme_set(standardPrintOutput::defaultFigureLayout())
+```
+
+## Tidy discretise
+
+Purpose of tidy discretise is to generate discrete values in place in a tidy dataframe or database table
+
+we'll use the iris dataset as an example
+
+## Manual data discretisation:
+
+First generate a dataframe representation of the cuts we want. This is just a geometric combination of the cuts and the groups.
+
+```{r}
+Sepal.length.cuts = c(5,5.5,7)
+cutsDf = iris %>% group_by(Species) %>% cutsDfFromVector(Sepal.length.cuts)
+cutsDf %>% group_by(Species) %>% standardPrintOutput::mergeCells()
+```
+
+## Discretise the data:
+
+```{r}
+#devtools::load_all("..")
+#debug( discretise_Manual)
+iris %>% group_by(Species) %>% discretise_Manual(Sepal.Length, Sepal.Length.Discrete, cutsDf, factorise=TRUE) %>% 
+  group_by(Species,Sepal.Length.Discrete) %>% standardPrintOutput::mergeCells()
+```
+
+## Bin count strategies:
+
+Sometimes we want to vary the number of bins, or the location of the cuts on a group by group basis based on other parameters such as group size, or min and max values, or mean and sd of the grouped data 
+
+linearBySize can help create cuts based on the group count (n), min and max:
+
+```{r}
+#devtools::load_all("..")
+# slope defines the relationship between the number fo observations and the number of bins
+binStrategy = linearBySize(slope=8,minBins=4,maxBins=100)
+
+# e.g. if the sample had 16 measurements ranging from 0 to 128 the following function would generate the cutsDf
+binStrategy(n=16,min=0,max=128)
+
+
+binStrategy(n=64,min=0,max=20)
+```
+
+other bin strategies include:
+
+* logNormalCentiles(bins=?)
+* fixedNumber(bins=?)
+* fixedWidth(width=?)
+
+N.B. this is a WIP
+
+## Bringing this together 
+
+We can discretise data assuming a log normal distribution with $\mu$ = mean of the data, and $\sigma$ = var of the data.
+
+N.B. this lognormal function is WIP - not working
+
+* TODO: need to solve for mu and sigma....
+* TODO: give user control of the labelling function...
+
+```{r}
+#devtools::load_all("..")
+#debug(discretise_ByValue)
+iris %>% group_by(Species) %>% discretise_ByValue(Sepal.Length, Sepal.Length.Discrete, binStrategy = logNormalCentiles(bins=4)) %>%
+  group_by(Species,Sepal.Length.Discrete) %>% 
+  summarise(Count=n(), Sepal.Length.Mean = mean(Sepal.Length) ) %>%
+  group_by(Species) %>%
+  standardPrintOutput::mergeCells()
+```
+
+## Discretisation by rank
+
+E.g. if we want to get actual centiles in the data we can fix the number of bins. This will be quick but on the downside we don't get meaningful labels.
+
+```{r echo=FALSE}
+# devtools::load_all("..")
+# undebug(discretise_ByRank)
+iris %>% group_by(Species) %>% discretise_ByRank(Sepal.Length, Sepal.Length.Discrete, bins = 3) %>%
+  group_by(Species,Sepal.Length.Discrete) %>% 
+  summarise(Count=n(), Sepal.Length.Mean = mean(Sepal.Length) ) %>%
+  group_by(Species) %>%
+  standardPrintOutput::mergeCells()
+```

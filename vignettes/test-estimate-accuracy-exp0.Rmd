@@ -1,0 +1,110 @@
+---
+title: "Test estimate accuracy"
+output: html_document
+knit: (function(inputFile, encoding,...) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "~/Dropbox/featureSelection/tidyinfostats") })
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r echo=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(devtools)
+library(standardPrintOutput)
+library(tidyinfostats)
+#devtools::load_all("..")
+set.seed(101)
+theme_set(standardPrintOutput::defaultFigureLayout())
+```
+
+
+
+
+## Experiment 0
+
+We are using KWindow instead of KNN in most of this for performance
+
+We need to know how good (or otherwise) this compares to estimate of KNN 
+
+```{r results = "hide"}
+#experiment0 = function() {
+set.seed(101)
+#devtools::load_all("..")
+exp0Data = NULL
+for (i in c(1:100)) {
+  cd = ConditionalDistribution$new()
+  cd$withRandomDistributions()
+  thMi = cd$theoreticalMI()
+  #thMu = cd$theoreticalMean()
+  #thSd = sqrt(cd$theoreticalVariance())
+  
+  for (j in c(1:30)) {
+    sampleSize = sample.int(480,1)+20
+    df = cd$sample(sampleSize)
+    mi.knn = calculateDiscreteContinuousMI(df, y, x, method = "KNN") %>% pull(I)
+    mi.kwindow = calculateDiscreteContinuousMI(df, y, x, method = "KWindow") %>% pull(I)
+    exp0Data = exp0Data %>% rbind(tibble(
+      sampleSize = sampleSize,
+      mi.knn = mi.knn,
+      mi.kwindow = mi.kwindow,
+      mi.theoretical = thMi,
+      i = i,
+      j=j
+    ))
+  }
+  
+}
+
+
+```
+
+Predicted KNN versus Predicted KWindow plot shows a reasonable agreement between KNN and KWindow
+
+```{r}
+exp0Data.summ = exp0Data %>% mutate(
+  mi.delta = mi.kwindow-mi.knn,
+  mi.relative_error = mi.delta
+)
+
+ggplot(exp0Data.summ, aes(x=mi.kwindow, y=mi.knn))+
+  geom_point(alpha=0.1,size=1,stroke=0)+geom_abline(slope=1,colour="grey")+
+  coord_cartesian(x=c(0,1),y=c(0,1))+ylab("Est. MI (KN method)")+xlab("Est. MI (KWindow method)")
+standardPrintOutput::saveSixthPageFigure(filename="~/Dropbox/featureSelection/mutinfo/KnnVsKwindow")
+
+```
+
+Predicted KNN versus Predicted KWindow delta converges with increasing sample size.
+
+```{r}
+ggplot(exp0Data.summ, aes(x=sampleSize, y=mi.relative_error))+geom_point(alpha=0.5,stroke=0,size=1) + 
+  geom_smooth(method='lm', formula= y~x)+ylab("\u0394 est MI (KWindow-KNN)")+xlab("Sample size")
+standardPrintOutput::saveSixthPageFigure(filename="~/Dropbox/featureSelection/mutinfo/KnnVsKwindowErrorVsSampleSize")
+```
+
+Absolute estimate difference increases with theoretical value of MI - i.e. MI error size is proportional to MI.
+N>B> that we don't know which (KNN or KWindow) is better against theoretical MI at this stage.
+
+```{r}
+
+exp0Data.summ2 = exp0Data.summ %>% 
+  group_by(i,mi.theoretical) %>% 
+  summarise(
+    mi.mean_rel_error=mean(abs(mi.relative_error),na.rm = TRUE), 
+    mi.sd_rel_error=sd(abs(mi.relative_error),na.rm = TRUE)
+  ) %>% mutate(
+    x=mi.theoretical,
+    y=mi.mean_rel_error,
+    ymin=mi.mean_rel_error-1.96*mi.sd_rel_error, 
+    ymax=mi.mean_rel_error+1.96*mi.sd_rel_error
+  )
+
+ggplot(exp0Data.summ2, aes(x=x,y=y))+geom_point()+ylab("|\u0394 MI|")+xlab("MI (Theoretical)")+geom_errorbar(
+  aes(ymin=ifelse(ymin<0,0,ymin), ymax=ymax)
+) + geom_smooth(method='lm', formula= y~x)
+standardPrintOutput::saveSixthPageFigure(filename="~/Dropbox/featureSelection/mutinfo/KnnVsKwindowErrorVsMiTheoretical")
+#}
+```
+

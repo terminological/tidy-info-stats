@@ -1,0 +1,107 @@
+---
+title: "distribution-functions"
+output: html_document
+knit: (function(inputFile, encoding,...) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "~/Dropbox/featureSelection/tidyinfostats") })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(tidyinfostats)
+# library(reticulate)
+#devtools::load_all("..")
+```
+
+## Distribution Functions
+
+Dont use this unless you have very specific use cases.
+
+The most sensible option is to use Distr6 <https://github.com/alan-turing-institute/distr6> for anything but the use case of testing various combined functions
+
+```{r}
+n = NormalDistribution$new(mean=0,sd=1)
+n$plot(-5,5)
+```
+```{r}
+ggplot(n$sample(100000),aes(x=x))+geom_histogram(bins = 500)
+```
+
+### Uniform density
+
+```{r pressure, echo=FALSE}
+n2 = UniformDistribution$new(min=2,max=4)
+n2$plot(xmin=0,xmax=5)
+```
+
+### Log Normal distribution
+
+Log normal plots are specified using a mode and a measure of variance
+
+<!-- ```{python results='asis'} -->
+<!-- from sympy import * -->
+<!-- import numpy as np -->
+<!-- x, y, z, t = symbols('x y z t') -->
+<!-- k, m, n = symbols('k m n', integer=True) -->
+<!-- f, g, h = symbols('f g h', cls=Function) -->
+<!-- print('<math>'+mathml(integrate(1/x, x))+'</math>') -->
+<!-- ``` -->
+
+$$\mathit{mode}={{e}^{\mu-{{\sigma}^{2}}}} \\
+\mathit{var}={{e}^{2\cdot \mu-{{\sigma}^{2}}}}\cdot \left( {{e}^{{{\sigma}^{2}}}}-1\right) $$
+
+This can be rearranged to the following:
+
+$$\mathit{var}+{{e}^{\mu}}\cdot \mathit{mode}-{{e}^{2\cdot \mu}}=0$$
+
+Which can be numerically solved for $\mu$ given the mode and variance, leaving the substitution for $\sigma$
+$$\sigma=\sqrt{\mu-\mathrm{log}\left( \mathit{mode}\right) }$$
+
+Which allows us to specify a log normal distribution with meaningful shape parameters.
+
+```{r}
+n3 = LogNormalDistribution$new(mode=5,sd=3)
+n3$plot(0,20)
+```
+
+The theoretical entropy value of this distribution is 
+
+```{r}
+paste0("Entropy: ",n3$theoreticalEntropy())
+```
+
+## Combining distributions
+
+Combining two distributions is also possible, and the default labelling can be overridden
+
+```{r}
+cd = ConditionalDistribution$new()
+cd$withDistribution(1,n)
+cd$withDistribution(1,n2,"class 2")
+cd$plot(xmin=-5,xmax=5)
+```
+
+And we can sample from this combined distribution which is returned as a dataframe containing the class in "y"
+
+```{r}
+ggplot(cd$sample(10000),aes(x=x,fill=y))+geom_histogram(position="dodge",bins=40)
+```
+
+A limited number of theoretical values are available for the combined distribution (well numerically calculated)
+
+```{r}
+paste0("Mean: ",cd$theoreticalMean())
+paste0("Variance: ",cd$theoreticalVariance())
+paste0("Mutual information between x and y: ",cd$theoreticalMI())
+
+```
+
+For testing purposes it is also useful to be able to generate a sample from a random collection of distributions with approximately sensible defaults.
+This is possible with a random distribution selector which will randomly pick from the known distributions
+
+```{r}
+cd3 = ConditionalDistribution$new()
+cd3$withRandomDistributions(3)
+cd3$plot(-10,10)
+```

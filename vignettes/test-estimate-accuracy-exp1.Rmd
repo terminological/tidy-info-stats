@@ -1,0 +1,290 @@
+---
+title: "Test estimate accuracy"
+output: html_document
+knit: (function(inputFile, encoding,...) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "~/Dropbox/featureSelection/tidyinfostats") })
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r echo=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(standardPrintOutput)
+library(tidyinfostats)
+#devtools::load_all("..")
+set.seed(101)
+theme_set(standardPrintOutput::defaultFigureLayout())
+```
+
+## Define test distributions
+
+### gaussians
+gaussian test params
+y0 = [ .4 .5 .8 ];          % the center of the gaussian
+sigma_y = [ .2 .3 .25 ];    % the gaussian decay constant
+p{2} = [ .2 1 0.5 ];        % the (normalized) amplitude p(x)
+
+```{r}
+gaussians = ConditionalDistribution$new()
+gaussians$withDistribution(0.2,NormalDistribution$new(0.4,0.2))
+gaussians$withDistribution(1,NormalDistribution$new(0.5,0.3))
+gaussians$withDistribution(0.5,NormalDistribution$new(0.8,0.25))
+```
+
+### Uniform distributions
+square wave test params
+
+a = [ 0 .1 .2 ];            % the left side of each square wave
+b_a = [ 1 1.1 1.1 ];        % the length in y of each square wave
+p{1} = [ .2 1 0.5 ];        % the (normalized) amplitude p(x)
+
+```{r}
+squareWaves = ConditionalDistribution$new()
+squareWaves$withDistribution(0.2,UniformDistribution$new(min=0,max=1))
+squareWaves$withDistribution(1,UniformDistribution$new(min=0.1,max=1.2))
+squareWaves$withDistribution(0.5,UniformDistribution$new(min=0.2,max=1.3))
+```
+
+### Log normals
+
+```{r}
+lognorm = ConditionalDistribution$new()
+lognorm$withDistribution(0.5,LogNormalDistribution$new(mode=0.5,sd=0.25))
+lognorm$withDistribution(1,LogNormalDistribution$new(mode=1.5,sd=1))
+lognorm$withDistribution(0.3,LogNormalDistribution$new(mode=2.5,sd=0.5))
+```
+
+### plot our distributions
+
+```{r}
+gaussians$plot(-1,2)
+standardPrintOutput::saveThirdPageFigure(filename="~/Dropbox/featureSelection/mutinfo/gaussiansDist")
+```
+
+```{r}
+squareWaves$plot(-0.5,1.5)
+standardPrintOutput::saveThirdPageFigure(filename="~/Dropbox/featureSelection/mutinfo/squareDist")
+```
+
+```{r}
+lognorm$plot(0,5)
+standardPrintOutput::saveThirdPageFigure(filename="~/Dropbox/featureSelection/mutinfo/lognormDist")
+```
+
+
+## Experiment 1
+
+B. C. Ross, “Mutual information between discrete and continuous data sets,” PLoS One, vol. 9, no. 2, p. e87357, Feb. 2014 [Online]. Available: http://dx.doi.org/10.1371/journal.pone.0087357
+
+The first experiment replicates Ross's findings around discretising data & KNN method for estimating MI but using 2 new algorithms and only the smaller sample size
+
+```{r echo=FALSE}
+#devtools::load_all("..")
+experiment1 = function(distribution, sampleSize, reps) {
+  
+  set.seed(101)
+  
+  kout = NULL
+  thMi = distribution$theoreticalMI()
+  thMu = distribution$theoreticalMean()
+  thSd = sqrt(distribution$theoreticalVariance())
+  
+  for (i in c(1:reps)) {
+	  # i = 1
+	  df = distribution$sample(sampleSize)
+	  estMean = mean(df$x)
+  	estSd = sd(df$x)
+  	
+  	# SGolay method
+	  k = c(5,7,10,15,20,30,40)
+	  kresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, y, x, method = "SGolay", k_05=k2) %>% pull(I)))
+  	kout = kout %>% bind_rows(tibble(
+  			method = rep("SGolay",length(k)),
+  			param = rep("filter width",length(k)),
+  			test = rep(i,length(k)),
+  			value = k,
+  			estimated.MI = kresult,
+  			estimated.Mean = rep(estMean,length(k)),
+  			estimated.Sd = rep(estSd,length(k))
+  	))
+	
+		# KWindow method
+  	k = c(2:10)
+		wresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, y, x, method = "KWindow", k_05=k2) %>% pull(I)))
+	  kout = kout %>% bind_rows(tibble(
+  			method = rep("KWindow",length(k)),
+  			param = rep("window width",length(k)),
+  			test = rep(i,length(k)),
+  			value = k,
+  			estimated.MI = wresult,
+  			estimated.Mean = rep(estMean,length(k)),
+  			estimated.Sd = rep(estSd,length(k))
+  	))
+	  
+	  # KNN method
+  	k = c(2:10)
+  	if (nrow(df)<500) {
+		  w2result = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, y, x, method = "KNN", k_05=k2) %>% pull(I)))
+  	} else {
+		  w2result = rep(NA,length(k))
+		}
+	  kout = kout %>% bind_rows(tibble(
+  			method = rep("KNN",length(k)),
+  			param = rep("knn distance",length(k)),
+  			test = rep(i,length(k)),
+  			value = k,
+  			estimated.MI = wresult,
+  			estimated.Mean = rep(estMean,length(k)),
+  			estimated.Sd = rep(estSd,length(k))
+  	))
+	  
+	  
+	  # Discretise method
+	  # binPow = seq(0.1,0.5,0.05)
+	  # k = floor(sampleSize^binPow)
+	  k = c(4,8,16,32,64,128,256)
+	  nresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, y, x, method = "DiscretiseByRank", discreteMethod="Histogram", bins=k2) %>% pull(I)))
+	  kout = kout %>% bind_rows(tibble(
+  			method = rep("Histogram by rank",length(k)),
+  			param = rep("number bins",length(k)),
+  			test = rep(i,length(k)),
+  			value = k, #sampleSize/k,
+  			estimated.MI = nresult,
+  			estimated.Mean = rep(estMean,length(k)),
+  			estimated.Sd = rep(estSd,length(k))
+  	))
+	  
+	  # DiscretiseValue method
+	  k = c(4,8,16,32,64,128,256)
+	  nresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, y, x, method = "DiscretiseByValue", discreteMethod="Histogram", bins=k2) %>% pull(I)))
+	  kout = kout %>% bind_rows(tibble(
+  			method = rep("Histogram by value",length(k)),
+  			param = rep("number bins",length(k)),
+  			test = rep(i,length(k)),
+  			value = k,
+  			estimated.MI = nresult,
+  			estimated.Mean = rep(estMean,length(k)),
+  			estimated.Sd = rep(estSd,length(k))
+  	))
+	  
+	  # DiscretiseValue method
+	  k = c(4,8,16,32,64,128,256)
+	  nresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, y, x, method = "DiscretiseByValue", discreteMethod="MontgomerySmith", bins=k2) %>% pull(I)))
+	  kout = kout %>% bind_rows(tibble(
+  			method = rep("Montgomery Smith",length(k)),
+  			param = rep("number bins",length(k)),
+  			test = rep(i,length(k)),
+  			value = k,
+  			estimated.MI = nresult,
+  			estimated.Mean = rep(estMean,length(k)),
+  			estimated.Sd = rep(estSd,length(k))
+  	))
+	  
+	  # Compression method
+	  k = c(1,2)
+	  nresult = calculateDiscreteContinuousMI(df, y, x, method = "Compression") %>% pull(I)
+	  kout = kout %>% bind_rows(tibble(
+  			method = rep("Compress",length(k)),
+  			param = rep("no param",length(k)),
+  			test = rep(i,length(k)),
+  			value = sampleSize/k,
+  			estimated.MI = rep(nresult,length(k)),
+  			estimated.Mean = rep(estMean,length(k)),
+  			estimated.Sd = rep(estSd,length(k))
+  	))
+	  
+  }
+  
+  kout = kout %>% mutate(
+    theoretical.MI = thMi,
+  	theoretical.Mean = thMu,
+  	theoretical.Sd = thSd
+  )
+  
+  
+  
+  return(kout)
+}
+
+exp1aData = experiment1(distribution=gaussians, sampleSize=400, reps=10)
+exp1bData = experiment1(distribution=gaussians, sampleSize=10000, reps=10)
+exp1cData = experiment1(distribution=squareWaves, sampleSize=400, reps=10)
+exp1dData = experiment1(distribution=squareWaves, sampleSize=10000, reps=10)
+exp1eData = experiment1(distribution=lognorm, sampleSize=400, reps=10)
+exp1fData = experiment1(distribution=lognorm, sampleSize=10000, reps=10)
+
+```
+
+```{r}
+# todo summarise experimental data
+plotExperiment1 = function(df) {
+  exp1aDataGrouped = df %>% group_by(method,param,value) %>% summarise( #,estimatedMean,estimatedSd,theoreticalMI,theoreticalMean,theoreticalSd) %>% summarise(
+    estMIMean = mean(estimated.MI),
+    estMIsd = sd(estimated.MI)
+  )
+
+  # p3 = 
+  return(
+    ggplot(exp1aDataGrouped, aes(x=value))+
+      geom_hline(yintercept=min(df$theoretical.MI), colour="blue")+
+  		geom_ribbon(aes(ymin=estMIMean-1.96*estMIsd,ymax=estMIMean+1.96*estMIsd), fill = "grey75",alpha=0.3)+
+  		geom_line(aes(y=estMIMean))+ylab("estimated MI")+xlab("free parameter value")+
+  		coord_cartesian(ylim = c(0,1))+
+      #expand_limits(y=0)+
+    	
+      facet_wrap(vars(method),scales = "free_x")
+  )
+}
+```
+
+### Experiment 1: gaussians
+
+Using a sample size of 400 and 100 repetitions of the test for bootstrapping
+
+```{r}
+plotExperiment1(exp1aData)
+standardPrintOutput::saveHalfPageFigure(filename="~/Dropbox/featureSelection/mutinfo/gaussiansEstimated400")
+```
+
+Using a sample size of 10000 and 100 repetitions of the test for bootstrapping
+
+```{r}
+plotExperiment1(exp1bData)
+standardPrintOutput::saveHalfPageFigure(filename="~/Dropbox/featureSelection/mutinfo/gaussiansEstimated10K")
+```
+
+### Experiment 1: uniform
+
+Using a sample size of 400 and 100 repetitions of the test for bootstrapping
+
+```{r cache=TRUE}
+plotExperiment1(exp1cData)
+standardPrintOutput::saveHalfPageFigure(filename="~/Dropbox/featureSelection/mutinfo/squareEstimated400")
+```
+
+Using a sample size of 10000 and 100 repetitions of the test for bootstrapping
+
+```{r}
+plotExperiment1(exp1dData)
+standardPrintOutput::saveHalfPageFigure(filename="~/Dropbox/featureSelection/mutinfo/squareEstimated10K")
+```
+
+### Experiment 1: log normal
+
+Using a sample size of 400 and 100 repetitions of the test for bootstrapping
+
+```{r}
+plotExperiment1(exp1eData)
+standardPrintOutput::saveHalfPageFigure(filename="~/Dropbox/featureSelection/mutinfo/lognormEstimated400")
+```
+
+Using a sample size of 10000 and 100 repetitions of the test for bootstrapping
+
+```{r}
+plotExperiment1(exp1fData)
+standardPrintOutput::saveHalfPageFigure(filename="~/Dropbox/featureSelection/mutinfo/lognormEstimated10K")
+```
+

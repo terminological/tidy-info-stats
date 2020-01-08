@@ -1,0 +1,55 @@
+---
+title: "Estimation of digamma errors"
+output: html_document
+knit: (function(inputFile, encoding,...) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "~/Dropbox/featureSelection/tidyinfostats") })
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Euler–Mascheroni constant ($\lambda$)
+
+$\lambda = 0.577215664901532$
+
+N.B. for integers:
+
+$digamma(M) = harmonic(M-1) - \lambda$
+
+$harmonic(N) \approx log(N) + \lambda + 1/(2N) - 1/(12N^2)$
+
+```{r}
+digamma2 = function(m) {
+  n = m-1
+  log(n)+1/(2*n)-1/(12*n^2)
+}
+```
+
+First 10 terms of:
+
+$harmonic(N) \approx log(N) + \lambda + 1/(2N) - \sum_{k=1}^{\infty} \frac{B_2k}{2kn^{2k}}$
+
+```{r}
+B2k = c(1/6,-1/30,1/42,-1/30,5/66,-691/2730,7/6,-3617/510, 43867/798, -174611/330)
+k = c(1:10)
+
+digamma10 = function(m) {
+  n = m-1
+  log(n)+1/(2*n)-sapply(n,function(n) sum(B2k/(2*k*n^(2*k))))
+}
+```
+
+Deltas between first 60 using the 10 term estimate using R digamma function
+```{r}
+n = c(2:60)
+
+digamma10(n)-base::digamma(n)
+```
+
+And using the 2 term estimate
+```{r}
+digamma2(n)-base::digamma(n)
+```
+
+In conclusion 2 term estimate if pretty good after 50 terms.
