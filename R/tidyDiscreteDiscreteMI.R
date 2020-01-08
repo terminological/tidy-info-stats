@@ -84,7 +84,9 @@ calculateDiscreteDiscreteMI_Entropy = function(df, groupXVar, groupYVar, entropy
     group_by(!!!grps) %>% mutate(N=n()) %>%
     group_by(!!!grps,!!groupXVar,N) %>% summarise(NX=n()) %>% mutate(Px=as.double(NX)/N, join=1)
   
-  Hygivenx = Hygivenx_tmp %>% left_join(Px, by=groupJoinList) %>% group_by(!!!grps) %>% summarise(Hygivenx = sum(H*Px), Hygivenx_sd = max(H_sd*Px)) %>% mutate(join = 1)
+  Hygivenx = Hygivenx_tmp %>% left_join(Px, by=groupJoinList) %>% group_by(!!!grps) %>% summarise(
+    Hygivenx = sum(H*Px,na.rm = TRUE), 
+    Hygivenx_sd = max(H_sd*Px,na.rm = TRUE)) %>% mutate(join = 1)
   
   tmp2 = Hy %>% left_join(Hygivenx, by=joinList) %>% mutate(
     I = Hy-Hygivenx, 

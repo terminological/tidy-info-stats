@@ -159,7 +159,7 @@ calculateEntropy_Grassberger = function(df, groupVars, ...) {
   )
   
   tmp3 = tmp2 %>% ungroup() %>% group_by(!!!grps) %>% summarise(
-    H = log(max(N)) - sum(p_i * G_ni,na.rm = TRUE),
+    H = log(max(N,na.rm = TRUE)) - sum(p_i * G_ni,na.rm = TRUE),
     H_sd = NA
   )
   

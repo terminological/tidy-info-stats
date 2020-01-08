@@ -48,7 +48,7 @@ calculateDiscreteContinuousMI_SGolay = function(df, discreteVar, continuousVar, 
   # N.B. this whole bit of code is confusing because groups mean 2 things here - the 
   # different types of Y (grps) which should be preserved and the discrete 
   # NX has group counts (N) and subgroup counts (N_X).
-  groupSize = df %>% group_by(!!!grps,!!discreteVar) %>% summarise(N_X = n()) %>% group_by(!!!grps) %>% mutate(N = sum(N_X))
+  groupSize = df %>% group_by(!!!grps,!!discreteVar) %>% summarise(N_X = n()) %>% group_by(!!!grps) %>% mutate(N = sum(N_X,na.rm = TRUE))
   
   # if (min(groupSize$N_X) < k_05*2+1) {
   #   return(df %>% group_by(!!!grps) %>% summarise(I = NA))
@@ -104,7 +104,7 @@ calculateDiscreteContinuousMI_SGolay = function(df, discreteVar, continuousVar, 
   tmp2 = tmp2 %>%  group_by(!!!grps) %>% arrange(y_continuous) %>% group_modify(
     function(d,...) {
       k = k_05*2+1
-      samples = min(d$N)
+      samples = min(d$N,na.rm = TRUE)
       # if (k >= samples) k = samples-samples%%2-1
       if (k < samples-1) {
         return(
@@ -355,7 +355,7 @@ calculateDiscreteContinuousMI_KNN = function(df, discreteVar, continuousVar, k_0
   # this is confusing because groups mean 2 things here - the 
   # different types of Y (grps) which should be preserved and the categorical X 
   # NX has group counts (N) and subgroup counts (N_X) 
-  grpCounts = df %>% group_by(!!!grps,!!discreteVar) %>% summarise(N_X = n()) %>% group_by(!!!grps) %>% mutate(N = sum(N_X)) %>% compute()
+  grpCounts = df %>% group_by(!!!grps,!!discreteVar) %>% summarise(N_X = n()) %>% group_by(!!!grps) %>% mutate(N = sum(N_X,na.rm = TRUE)) %>% compute()
   
   # add in overall counts of groups
   tmp = df %>% inner_join(grpCounts, by=joinList) %>% mutate(
