@@ -32,6 +32,13 @@ Distribution = R6::R6Class("Distribution", public=list(
 					rlang::exec(self$pdf,x,!!!self$dots)
 				},
 				
+				#' @description calculate the value of x for a centile y
+				#' @param y a vector of centiles
+				#' @return a vector of values of x
+				q = function(y) {
+				  rlang::exec(self$invCdf,y,!!!self$dots)
+				},
+				
 				#' @description the PDF and CDF for a distribution as a dataframe
 				#' @param xmin the smallest value
 				#' @param xmax the smallest value
@@ -107,6 +114,13 @@ Distribution = R6::R6Class("Distribution", public=list(
 					pdfPlot = ggplot(df,aes(x=x,y=px,ymax=px))+geom_line(colour="red")+geom_area(fill="red",alpha=0.3)+ylab("p(x)")
 					cdfPlot = ggplot(df,aes(x=x,y=CDFx))+geom_line(colour="blue")+ylab("P(x)")
 					return(patchwork::wrap_plots(pdfPlot,cdfPlot,nrow=1))
+				},
+				
+				#' @description a 2 dp formatter
+				#' @param x a number
+				#' @param unit a unit
+				twoDp = function(x,unit="") {
+				  paste0(sprintf("%.2f",x),unit)
 				}
 		
 		))
@@ -138,7 +152,7 @@ NormalDistribution = R6::R6Class("NormalDistribution", inherit=Distribution, pub
 				#' @description gets a label for this distribution based on the parameters passed
 				#' @return a string
 				label = function() {
-					return(paste0("Norm: \U003BC=",twoDp(self$mu),"; \u03C3=",twoDp(self$sigma)))
+					return(paste0("Norm: \U003BC=",self$twoDp(self$mu),"; \u03C3=",self$twoDp(self$sigma)))
 				}
 		))
 
@@ -153,20 +167,26 @@ LogNormalDistribution = R6::R6Class("LogNormalDistribution", inherit=Distributio
 				#' @field sigma the sd of the normal distribuition
 				sigma=NULL,
 				#' @description plot this dictributions as pdf and cdf
-				#' @param mode the mode - must be 1 or greater TODO: find out why
-				#' @param sd the sd
-				initialize = function(mode=runif(1,1,4),sd=runif(1,0.5,5)) {
-					self$mu = mode
-					self$sigma = sd
-					fn = function(mean,mode,sd) exp(mean)*mode-exp(2*mean)+sd^2
-					meanlog = stats::uniroot(fn, interval=c(-100,100), mode=mode, sd=sd)$root
-					sdlog = sqrt(meanlog-log(mode))
-					super$initialize(density=dlnorm,quantile=qlnorm,meanlog=meanlog,sdlog=sdlog)
+				#' @param mode the mode
+				#' @param var the variance
+				#' @param mean the desired mean
+				initialize = function(mode=runif(1,1,4),var=runif(1,0.5,5),mean=NA) {
+					if (is.na(mean)) {
+				    fnMuFromMode = function(mu,mode,var) log((mode*var)/(exp(mu)-mode))+log(mode)-3*mu
+				      # exp(mu)*mode-exp(2*mu)+var^2
+				    self$mu = stats::uniroot(fnMuFromMode, interval=c(log(mode)+0.000001, 1000), mode=mode, var=var)$root
+				    self$sigma = sqrt(self$mu-log(mode))
+					} else {
+					  #https://en.wikipedia.org/wiki/Log-normal_distribution LN7 -> LN2
+					  self$mu = log(mean/sqrt(1+var^2/mean^2))
+					  self$sigma = log(1+var^2/mean^2)
+					}
+					super$initialize(density=dlnorm,quantile=qlnorm,meanlog=self$mu,sdlog=self$sigma)
 				},
 				#' @description gets a label for this distribution based on the parameters passed
 				#' @return a string
 				label = function() {
-					return(paste0("LogNorm: mode=",twoDp(self$mu),"; var=",twoDp(self$sigma)))
+					return(paste0("LogNorm: \U003BC=",self$twoDp(self$mu),"; \u03C3=",self$twoDp(self$sigma)))
 				}
 		))
 
@@ -177,7 +197,7 @@ LogNormalDistribution = R6::R6Class("LogNormalDistribution", inherit=Distributio
 #' @import dplyr
 #' @export
 UniformDistribution = R6::R6Class("UniformDistribution", inherit=Distribution, public=list(
-				#' @description plot this dictributions as pdf and cdf
+				#' @description Uniform distribution
 				#' @param min the min value of the uniform distribution
 				#' @param max the max value of the uniform distribution
 				initialize = function(min=runif(1,-3,3),max=min+runif(1,0.5,6)) {
@@ -186,13 +206,72 @@ UniformDistribution = R6::R6Class("UniformDistribution", inherit=Distribution, p
 				
 				#' @description get a label for this distribution
 				label = function() {
-				  return(paste0("Unif: ",paste(paste0(names(self$dots),"=",twoDp(self$dots)),collapse="; ")))
+				  return(paste0("Unif: ",paste(paste0(names(self$dots),"=",self$twoDp(self$dots)),collapse="; ")))
 				}
 		))
 
-twoDp = function(x,unit="") {
-	paste0(sprintf("%.2f",x),unit)
-}
+#' Get a kumaraswamy distribution wrapper
+#'
+#' @keywords distributions
+#' @import dplyr
+#' @export
+MirroredKumaraswamyDistribution = R6::R6Class("MirroredKumaraswamyDistribution", inherit=Distribution, public=list(
+  #' @field mode the mode of the kumaraswamy
+  mode=NULL,
+  #' @field sigma the iqr of the normal distribuition
+  iqr=NULL,
+  #' @description Kumaraswamy distribution
+     #' @param mode the mode of the distribution
+     #' @param iqr the iqr of the target (must be strictly less than 0.5)
+     initialize = function(mode=runif(1,0.1,0.9),iqr=runif(0.1,0.3)) {
+       self$mode = mode
+       self$iqr = iqr
+       fn = function(a,mode,iqr) (1-0.25^((a*mode^a)/(mode^a+a-1)))^(1/a)-(1-0.75^((a*mode^a)/(mode^a+a-1)))^(1/a)-iqr
+       a = stats::uniroot(fn, interval=c(1, 10000), mode=(1-mode), iqr=iqr)$root
+       b = (-1+a+(1-mode)^a)/(a*(1-mode)^a)
+       super$initialize(
+         density=function(x,a,b) a*b*(1-x)^(a-1)*(1-(1-x)^a)^(b-1),
+         quantile=function(y,a,b) 1-(1-y^(1/b))^(1/a),
+         a=a,b=b)
+     },
+     
+     #' @description get a label for this distribution
+     label = function() {
+       return(paste0("Kum: mode=",self$twoDp(self$mode),"; var=",self$twoDp(self$var)))
+     }
+))
+
+#' Get a kumaraswamy distribution wrapper
+#'
+#' @keywords distributions
+#' @import dplyr
+#' @export
+KumaraswamyDistribution = R6::R6Class("KumaraswamyDistribution", inherit=Distribution, public=list(
+  #' @field mode the mode of the kumaraswamy
+     mode=NULL,
+     #' @field sigma the iqr of the normal distribuition
+     iqr=NULL,
+     #' @description Kumaraswamy distribution
+     #' @param mode the mode of the distribution
+     #' @param iqr the iqr of the target (must be strictly less than 0.5)
+     initialize = function(mode=runif(1,0.1,0.9),iqr=runif(0.1,0.3)) {
+       self$mode = mode
+       self$iqr = iqr
+       fn = function(a,mode,iqr) (1-0.25^((a*mode^a)/(mode^a+a-1)))^(1/a)-(1-0.75^((a*mode^a)/(mode^a+a-1)))^(1/a)-iqr
+       a = stats::uniroot(fn, interval=c(1, 10000), mode=mode, iqr=iqr)$root
+       b = (-1+a+mode^a)/(a*mode^a)
+       super$initialize(
+         density=function(x,a,b) a*b*x^(a-1)*(1-x^a)^(b-1),
+         quantile=function(y,a,b) (1-(1-y)^(1/b))^(1/a),
+         a=a,b=b)
+     },
+     
+     #' @description get a label for this distribution
+     label = function() {
+       return(paste0("Kum: mode=",self$twoDp(self$mode),"; var=",self$twoDp(self$var)))
+     }
+))
+
 
 ##### ---------------
 

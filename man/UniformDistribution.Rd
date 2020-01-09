@@ -28,15 +28,17 @@ Get a uniform distribution wrapper
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="inverse">}\href{../../tidyinfostats/html/Distribution.html#method-inverse}{\code{tidyinfostats::Distribution$inverse()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="p">}\href{../../tidyinfostats/html/Distribution.html#method-p}{\code{tidyinfostats::Distribution$p()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="plot">}\href{../../tidyinfostats/html/Distribution.html#method-plot}{\code{tidyinfostats::Distribution$plot()}}\out{</span>}
+\item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="q">}\href{../../tidyinfostats/html/Distribution.html#method-q}{\code{tidyinfostats::Distribution$q()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="sample">}\href{../../tidyinfostats/html/Distribution.html#method-sample}{\code{tidyinfostats::Distribution$sample()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="theoreticalEntropy">}\href{../../tidyinfostats/html/Distribution.html#method-theoreticalEntropy}{\code{tidyinfostats::Distribution$theoreticalEntropy()}}\out{</span>}
+\item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="twoDp">}\href{../../tidyinfostats/html/Distribution.html#method-twoDp}{\code{tidyinfostats::Distribution$twoDp()}}\out{</span>}
 }
 \out{</details>}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-new"></a>}}
 \subsection{Method \code{new()}}{
-plot this dictributions as pdf and cdf
+Uniform distribution
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{UniformDistribution$new(min = runif(1, -3, 3), max = min + runif(1, 0.5, 6))}\if{html}{\out{</div>}}
 }

@@ -25,6 +25,7 @@ Get a distribution wrapper
 \itemize{
 \item \href{#method-new}{\code{Distribution$new()}}
 \item \href{#method-p}{\code{Distribution$p()}}
+\item \href{#method-q}{\code{Distribution$q()}}
 \item \href{#method-getPdf}{\code{Distribution$getPdf()}}
 \item \href{#method-getInverseCdf}{\code{Distribution$getInverseCdf()}}
 \item \href{#method-theoreticalEntropy}{\code{Distribution$theoreticalEntropy()}}
@@ -32,6 +33,7 @@ Get a distribution wrapper
 \item \href{#method-inverse}{\code{Distribution$inverse()}}
 \item \href{#method-sample}{\code{Distribution$sample()}}
 \item \href{#method-plot}{\code{Distribution$plot()}}
+\item \href{#method-twoDp}{\code{Distribution$twoDp()}}
 \item \href{#method-clone}{\code{Distribution$clone()}}
 }
 }
@@ -72,6 +74,25 @@ calculate the probability density at x
 }
 \subsection{Returns}{
 a vector of values of (p(x))
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-q"></a>}}
+\subsection{Method \code{q()}}{
+calculate the value of x for a centile y
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Distribution$q(y)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{y}}{a vector of centiles}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+a vector of values of x
 }
 }
 \if{html}{\out{<hr>}}
@@ -199,6 +220,24 @@ plot this dictributions as pdf and cdf
 }
 \subsection{Returns}{
 a ggassemble plot object
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-twoDp"></a>}}
+\subsection{Method \code{twoDp()}}{
+a 2 dp formatter
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Distribution$twoDp(x, unit = "")}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{x}}{a number}
+
+\item{\code{unit}}{a unit}
+}
+\if{html}{\out{</div>}}
 }
 }
 \if{html}{\out{<hr>}}

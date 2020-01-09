@@ -67,6 +67,7 @@ Objectives:
 ```{r}
 #devtools::load_all("..")
 
+#TODO: Include Discretise by value -> Grassberger in here
 experiment3 = function(distribution, reps, meth = c("KWindow","KNN","SGolay","DiscretiseByRank","DiscretiseByValue","Compression")) {
   
   set.seed(101)
@@ -132,9 +133,9 @@ quantifyError = function(df) {
 
 
 
-exp3aData = experiment3(lognorm,10)
-exp3bData = experiment3(gaussians,10)
-exp3cData = experiment3(squareWaves,10)
+exp3aData = experiment3(lognorm,100)
+exp3bData = experiment3(gaussians,100)
+exp3cData = experiment3(squareWaves,100)
 ```
 
 ```{r}

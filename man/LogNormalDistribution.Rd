@@ -37,8 +37,10 @@ Get a log normal distribution wrapper
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="inverse">}\href{../../tidyinfostats/html/Distribution.html#method-inverse}{\code{tidyinfostats::Distribution$inverse()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="p">}\href{../../tidyinfostats/html/Distribution.html#method-p}{\code{tidyinfostats::Distribution$p()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="plot">}\href{../../tidyinfostats/html/Distribution.html#method-plot}{\code{tidyinfostats::Distribution$plot()}}\out{</span>}
+\item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="q">}\href{../../tidyinfostats/html/Distribution.html#method-q}{\code{tidyinfostats::Distribution$q()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="sample">}\href{../../tidyinfostats/html/Distribution.html#method-sample}{\code{tidyinfostats::Distribution$sample()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="theoreticalEntropy">}\href{../../tidyinfostats/html/Distribution.html#method-theoreticalEntropy}{\code{tidyinfostats::Distribution$theoreticalEntropy()}}\out{</span>}
+\item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="twoDp">}\href{../../tidyinfostats/html/Distribution.html#method-twoDp}{\code{tidyinfostats::Distribution$twoDp()}}\out{</span>}
 }
 \out{</details>}
 }
@@ -47,15 +49,21 @@ Get a log normal distribution wrapper
 \subsection{Method \code{new()}}{
 plot this dictributions as pdf and cdf
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{LogNormalDistribution$new(mode = runif(1, 1, 4), sd = runif(1, 0.5, 5))}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{LogNormalDistribution$new(
+  mode = runif(1, 1, 4),
+  var = runif(1, 0.5, 5),
+  mean = NA
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{mode}}{the mode - must be 1 or greater TODO: find out why}
+\item{\code{mode}}{the mode}
 
-\item{\code{sd}}{the sd}
+\item{\code{var}}{the variance}
+
+\item{\code{mean}}{the desired mean}
 }
 \if{html}{\out{</div>}}
 }

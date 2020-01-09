@@ -8,9 +8,9 @@ knit: (function(inputFile, encoding,...) {
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyinfostats)
+library(tidyverse)
 #devtools::load_all("..")
 set.seed(101)
-theme_set(standardPrintOutput::defaultFigureLayout())
 ```
 
 ## Tidy discretise

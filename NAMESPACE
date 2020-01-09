@@ -2,7 +2,9 @@
 
 export(ConditionalDistribution)
 export(Distribution)
+export(KumaraswamyDistribution)
 export(LogNormalDistribution)
+export(MirroredKumaraswamyDistribution)
 export(NormalDistribution)
 export(UniformDistribution)
 export(calculateBinaryMI)

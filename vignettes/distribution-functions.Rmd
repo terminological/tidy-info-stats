@@ -9,9 +9,9 @@ knit: (function(inputFile, encoding,...) {
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(ggplot2)
-library(tidyinfostats)
+#library(tidyinfostats)
 # library(reticulate)
-#devtools::load_all("..")
+devtools::load_all("..")
 ```
 
 ## Distribution Functions
@@ -61,8 +61,24 @@ $$\sigma=\sqrt{\mu-\mathrm{log}\left( \mathit{mode}\right) }$$
 Which allows us to specify a log normal distribution with meaningful shape parameters.
 
 ```{r}
-n3 = LogNormalDistribution$new(mode=5,sd=3)
+devtools::load_all("..")
+n3 = LogNormalDistribution$new(mode=5,var=3)
 n3$plot(0,20)
+n3$q(seq(0,1,length.out = 5))
+```
+
+```{r}
+devtools::load_all("..")
+n3 = LogNormalDistribution$new(mean=6,var=3)
+n3$plot(0,20)
+```
+
+```{r}
+devtools::load_all("..")
+n4 = KumaraswamyDistribution$new(mode=0.4,iqr=0.3)
+n4$plot(0,1)
+n5 = MirroredKumaraswamyDistribution$new(mode=0.6,iqr=0.3)
+n5$plot(0,1)
 ```
 
 The theoretical entropy value of this distribution is 
@@ -80,6 +96,13 @@ cd = ConditionalDistribution$new()
 cd$withDistribution(1,n)
 cd$withDistribution(1,n2,"class 2")
 cd$plot(xmin=-5,xmax=5)
+```
+
+```{r}
+cd2 = ConditionalDistribution$new()
+cd2$withDistribution(1,n4,"class 1")
+cd2$withDistribution(1,n5,"class 2")
+cd2$plot(xmin=0,xmax=1)
 ```
 
 And we can sample from this combined distribution which is returned as a dataframe containing the class in "y"
