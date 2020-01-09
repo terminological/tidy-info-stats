@@ -30,14 +30,13 @@ discretise = function(df, continuousVar, discreteOutputVar, method, ...) {
 logNormalCentiles = function(bins) {
   return(
     function(mean,sd,...) {
-      lnd = LogNormalDistribution$new(mean=mean,var=sd)
       # TODO:
       # need to solve these two equations for μ & σ
       # mean = exp(μ + 1/2 σ^2)
       # sd = sqrt(exp(2*μ + σ^2)*(exp(σ^2) - 1))
       # use DistributionFunctions
       return(tibble(
-        cut = lnd$q(seq(0,1,length.out = bins+1), meanlog = log(mean), sdlog = sd)[2:bins]
+        cut = LogNormalDistribution$new(mean=mean,var=sqrt(sd))$q(seq(0,1,length.out = bins+1))[2:bins]
       ))
     }
   )
