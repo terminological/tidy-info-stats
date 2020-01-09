@@ -52,12 +52,12 @@ probabilitiesFromGroups = function(df, groupXVar, groupYVar, countVar=NULL) {
     df = df %>% group_by(!!!grps, !!groupXVar, !!groupYVar) %>% summarise(f_xy = sum(!!countVar))
   }
   N = df %>% ungroup() %>% group_by(!!!grps) %>% summarise(
-    N=sum(f_xy), 
-    classes_XY=n_distinct(!!groupXVar,!!groupYVar),
-    classes_X=n_distinct(!!groupXVar), 
-    classes_Y=n_distinct(!!groupXVar)
+    N=sum(f_xy) #, this was for miller-madow adj we can do this differently now in tidyinfostats
+    # classes_XY=n_distinct(!!groupXVar,!!groupYVar),
+    # classes_X=n_distinct(!!groupXVar), 
+    # classes_Y=n_distinct(!!groupYVar)
     ) %>% 
-    mutate(mm_adjust = as.double(classes_X+classes_Y-classes_XY-1)/(2*N)) %>% 
+    # mutate(mm_adjust = as.double(classes_X+classes_Y-classes_XY-1)/(2*N)) %>% 
     mutate(join=1)
   # N = N %>% mutate(classes_XY = nrow(N))
   X = df %>% ungroup() %>% group_by(!!!grps,!!groupXVar) %>% summarise(f_x = sum(f_xy)) %>% mutate(join=1) # grouping
