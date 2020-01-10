@@ -5,25 +5,6 @@
 #' you either have a set of observations of their co-occurrence, containing non-unique X & Y combinations, or you have a confusion matrix of the counts of their combinations where 
 #' each row has a unique combination of X and Y and a third column contains the counts of XY co-occurrences.
 #' 
-#' https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-9-461
-#' 
-#' $$I = H_x + H_y - H_xy$$
-#' 
-#' Where I is information
-#' 
-#' x is a member of X and |X| is number of possible values of x with no non empty bins (classes_X):
-#' y is a member of Y and |Y| is number of possible values of y with no non empty bins (classes_Y):
-#' xy is a member of XY and |XY| is number of possible values of combination of x and y with no non empty bins (classes_XY):
-#' N is the number of samples
-#' 
-#' $$H_x__mm = H_x__emp + (|Z_x| - 1)/2N$$
-#' 
-#' $$I__mm = I__emp + (|X| - 1)/2N + (|Y| - 1)/2N - (|XY| - 1)/2N$$
-#' 
-#' $$I__mm = I__emp + (|X| + |Y| - |XY| - 1)/2N$$
-#' 
-#' This is a Miller-Madow adjustment.
-#' 
 #' @param df a dataframe containing 2 columns defining class of event X and class of event Y and either one row per event, 
 #' or a count of observations, for each class combination. 
 #' df may also be grouped and in which case the grouping is preserved in the result.

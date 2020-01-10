@@ -266,3 +266,24 @@ calculateEntropy_Compression = function(df, groupVars, orderingVar = NULL, colle
   
   return(tmp2 %>% ungroup() %>% select(-c(C_x,N)))
 }
+
+
+# 
+# https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-9-461
+# 
+# $$I = H_x + H_y - H_xy$$
+# 
+# Where I is information
+# 
+# x is a member of X and |X| is number of possible values of x with no non empty bins (classes_X):
+# y is a member of Y and |Y| is number of possible values of y with no non empty bins (classes_Y):
+# xy is a member of XY and |XY| is number of possible values of combination of x and y with no non empty bins (classes_XY):
+# N is the number of samples
+# 
+# $$H_x__mm = H_x__emp + (|Z_x| - 1)/2N$$
+# 
+# $$I__mm = I__emp + (|X| - 1)/2N + (|Y| - 1)/2N - (|XY| - 1)/2N$$
+# 
+# $$I__mm = I__emp + (|X| + |Y| - |XY| - 1)/2N$$
+# 
+# This is a Miller-Madow adjustment.

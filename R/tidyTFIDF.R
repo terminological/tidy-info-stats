@@ -155,46 +155,53 @@ calculateTfidf = function(groupedDf, conceptIdVar, countVar=NULL, idfDf=NULL, k1
 
 #' Calculate a co-occurrence matrix for concepts associated with a grouping
 #' 
-#' The grouped dataframe here acts as a "Document" from the perpective of the co-occurrence but might be a person
+#' The grouped dataframe here acts as a "Document" from the perpective of the co-occurrence but might be a person. For the cose of co-occurrence we are only interested in the existence of
+#' a term in a document and not the counts of either.
 #' 
-#' @param groupedDf a dataframe whose grouping defines the "document"
+#' @param groupedDf a dataframe whose grouping defines the "document" and contains all observations of the terms in that document
 #' @param conceptIdVar a field that contains the unique id of a "term"
-#' @param countVar a field that contains a count. If this is given then it is assumed that the concept & document combinations are unique 
 #' @param filteredIdfDf an optional data frame containing idf information from this or another corpus. It is recommended that this is a heavily filtered list as the result will be the square of the size of this
 #' @param bigResult are you expecting a big result?
 #' @return a data frame with co-occurrence stats for each concept in filteredIdf (i.e. document)
 #' @import dplyr
 #' @export
 #' @return the co-occurrence matrix as a dataframe
-calculateCooccurrence = function(groupedDf, conceptIdVar, countVar = NULL, filteredIdfDf = NA, bigResult=FALSE) {
+calculateCooccurrenceMI = function(groupedDf, conceptIdVar, filteredIdfDf = NA, bigResult=FALSE) {
 	
 	grps = groupedDf %>% groups()
 	if (length(grps) == 0) stop("dataframe must be grouped")
 	conceptIdVar = ensym(conceptIdVar)
-	countVar = tryCatch(ensym(countVar),error = function(e) NULL)
+	conceptId1Var = as.symbol(paste0(as.character(conceptIdVar),"1"))
+	conceptId2Var = as.symbol(paste0(as.character(conceptIdVar),"2"))
 	joinList = sapply(grps,as.character)
 	#indexList = c(grpsList,as.character(conceptIdVar))
 	
-	if (identical(countVar,NULL)) {
-		groupedDf = groupedDf %>% group_by(!!!grps, !!conceptIdVar) %>% summarise(count = n())
-	} else {
-		groupedDf = groupedDf %>% group_by(!!!grps, !!conceptIdVar) %>% summarise(count = sum(!!countVar))
-	}
-		
 	if (identical(filteredIdfDf,NA)) {
-		filteredIdfDf = calculateIdf(groupedDf, !!conceptIdVar, !!countVar)
+	  # calculate the IDF assuming the groupedDf contains the whol corpus
+	  filteredIdfDf = calculateIdf(groupedDf, !!conceptIdVar)
+	} else {
+	  # make sure the IDF does not include concepts outside of the groupedDf set, otherwise these will generate zero co-occurrence entries in the final result
+	  filteredIdfDf = filteredIdfDf %>% semi_join(groupedDf, by=as.character(conceptIdVar))
 	}
 	
-	if (filteredIdfDf %>% count() > 500 && bigResult == FALSE) stop("The co-occurrence result is going to be greater than 250000. Set bigResult = TRUE to execute.")
+	# cut down the groupedDf to just the subset and 
+	tmpGroupedDf = groupedDf %>% inner_join(filteredIdfDf, by=as.character(conceptIdVar)) 
+	tmpGroupedDf = tmpGroupedDf %>% select(!!!grps, !!conceptIdVar)
+	tmpGroupedDf = tmpGroupedDf %>% distinct(!!!grps, !!conceptIdVar) 
+	# TODO: for some very obscure reason this was throwing an error when using compute(), complaining about a name collision. The SQL it was generating was fine though, and worked seperatey
+	# I think this has eomthing to do with the distinct cause which wraps the sql using a subquery identifier that does not conform to the same syntax as the others.
+	filteredGroupedDf = tmpGroupedDf %>% collapse() # %>% compute()
+	filteredIdfDf = filteredIdfDf %>% ungroup()
+	
+	if (filteredIdfDf %>% count() %>% pull(n) > 500 && bigResult == FALSE) stop("The co-occurrence result is going to be greater than 250000. Set bigResult = TRUE to execute.")
 	
 	# Generate the "full" matrix of cooccurences
 	# is actually calculated as MI is symmetrical
 	# created on a join using a constant value j to give all possible cooccurrences.
 	# add corpus level frequency information from each of the 2 sides of the co-occurrence matrix
-	fullMatrix = filteredIdfDf %>% select(concept_id1 = !!conceptIdVar, N_t1 = N_t) %>% mutate(j=1) %>% inner_join(
-			filteredIdfDf %>% select(concept_id2 = !!conceptIdVar, N_t2 = N_t, N) %>% mutate(j=1), by="j"
+	fullMatrix = filteredIdfDf %>% select(tmp_concept_id1 = !!conceptIdVar, N_t1 = N_t) %>% mutate(j=1L) %>% inner_join(
+			filteredIdfDf %>% select(tmp_concept_id2 = !!conceptIdVar, N_t2 = N_t, N) %>% mutate(j=1L), by="j"
 	) %>% select(-j)
-		
 	fullMatrix = fullMatrix %>% compute()
 	
 	# create the co-occurence information from the document level information
@@ -202,19 +209,20 @@ calculateCooccurrence = function(groupedDf, conceptIdVar, countVar = NULL, filte
 	# joins = sapply(grps, as.character)
 	# names(joins) = lapply(grps, as.character)
 	
-	# apply the join on the document leve info
-	tmp = groupedDf %>% select(!!!grps, concept_id1 = concept_id) %>% 
-			inner_join(groupedDf %>% select(!!!grps,concept_id2 = concept_id), by=joinList)
+	# apply the join on the document level infoto work out the cooccurences
+	tmp = filteredGroupedDf %>% rename(tmp_concept_id1 = !!conceptIdVar) %>% 
+			inner_join(filteredGroupedDf %>% rename(tmp_concept_id2 = !!conceptIdVar), by=joinList)
 	
 	# count the number of co-occurences
-	tmp = tmp %>% ungroup() %>% group_by(concept_id1,concept_id2) %>% summarise(N_t1t2 = n()) %>% 
+	tmp = tmp %>% ungroup() %>% group_by(tmp_concept_id1,tmp_concept_id2) %>% summarise(N_t1t2 = n()) %>% 
 			compute()
 	
-	# add document level co-occurrnce frequency info to the matrix
-	fullMatrix = fullMatrix %>% left_join(tmp, by=c("concept_id1","concept_id2"), copy=TRUE) %>% 
-			mutate(N_t1t2 = ifelse(is.na(N_t1t2),0,N_t1t2))
+	# add document level co-occurrence frequency info to the matrix
+	fullMatrix = fullMatrix %>% left_join(tmp, by=c("tmp_concept_id1","tmp_concept_id2")) 
+	fullMatrix = fullMatrix %>% mutate(N_t1t2 = ifelse(is.na(N_t1t2),0,N_t1t2)) 
+	fullMatrix = fullMatrix %>% rename(!!conceptId1Var := tmp_concept_id1, !!conceptId2Var := tmp_concept_id2 )
 	
-	return(fullMatrix)
+	return(fullMatrix %>% tidyinfostats::probabilitiesFromCounts(N_t1t2, N_t1, N_t2, N) %>% tidyinfostats::calculateBinaryMI())
 	
 	
 }

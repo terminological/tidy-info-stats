@@ -2,7 +2,7 @@
 #'
 #' The purpose of this is to make it possible to calculate MI in a DBPLYR sql table
 #' 
-#' @param df a dataframe containing one observation per row & p_x1y1, p_x0y1, p_x1y0, and p_x0y0 columns (see probabilitiesFromCounts)
+#' @param df a dataframe containing one observation per row & p_x1, p_x0, p_y1, p_y0, p_x1y1, p_x0y1, p_x1y0, and p_x0y0 columns (see probabilitiesFromCounts)
 #' @return the datatable with additional columns for MI; PMI0 and PMI1; for all various combinations of outcome
 #' @import dplyr
 #' @export
@@ -14,13 +14,16 @@ calculateBinaryMI = function(df) {
 			pmi_x1y0 = ifelse( p_x1y0==0, ifelse(p_x1==0 | p_y0==0, 0, NA), log(p_x1y0/(p_x1*p_y0)) ),
 			pmi_x0y0 = ifelse( p_x0y0==0, ifelse(p_x0==0 | p_y0==0, 0, NA), log(p_x0y0/(p_x0*p_y0)) )
 		) %>% mutate(
-			I_xy = (
+		  H_x = ifelse(p_x1==0|p_x0==0,0,-(p_x1*log(p_x1)+(p_x0*log(p_x0)))),
+		  H_y = ifelse(p_y1==0|p_y0==0,0,-(p_y1*log(p_y1)+(p_y0*log(p_y0)))),
+			I = (
 				ifelse(p_x1y1==0|p_x1==0|p_y1==0, 0, p_x1y1*pmi_x1y1)+
 				ifelse(p_x0y1==0|p_x0==0|p_y1==0, 0, p_x0y1*pmi_x0y1)+
 				ifelse(p_x1y0==0|p_x1==0|p_y0==0, 0, p_x1y0*pmi_x1y0)+
 				ifelse(p_x0y0==0|p_x0==0|p_y0==0, 0, p_x0y0*pmi_x0y0)
 			)
 		) %>% mutate(
+			H_xy = H_x + H_y - I,
 			npmi_x1y1 = ifelse( p_x1y1==0, ifelse(p_x1==0 | p_y1==0, 0, -1), pmi_x1y1 / (-log(p_x1y1)) ),
 			npmi_x0y1 = ifelse( p_x0y1==0, ifelse(p_x0==0 | p_y1==0, 0, -1), pmi_x0y1 / (-log(p_x0y1)) ),
 			npmi_x1y0 = ifelse( p_x1y0==0, ifelse(p_x1==0 | p_y0==0, 0, -1), pmi_x1y0 / (-log(p_x1y0)) ),
