@@ -17,14 +17,7 @@ Get a kumaraswamy distribution wrapper
 \describe{
 \item{\code{mode}}{the mode of the kumaraswamy}
 
-\item{\code{sigma}}{the iqr of the normal distribuition}
-}
-\if{html}{\out{</div>}}
-}
-\section{Active bindings}{
-\if{html}{\out{<div class="r6-active-bindings">}}
-\describe{
-\item{\code{sigma}}{the iqr of the normal distribuition}
+\item{\code{iqr}}{the iqr of the normal distribuition}
 }
 \if{html}{\out{</div>}}
 }

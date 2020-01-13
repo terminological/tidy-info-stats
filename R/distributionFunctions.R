@@ -136,7 +136,7 @@ Distribution = R6::R6Class("Distribution", public=list(
 NormalDistribution = R6::R6Class("NormalDistribution", inherit=Distribution, public=list(
 				#' @field mu the mean of the normal distribuition  
 				mu=NULL,
-				#' @field sigma the  
+				#' @field sigma the sigma value for the distribution 
 				sigma=NULL,
 				
 				#' @description plot this dictributions as pdf and cdf
@@ -218,7 +218,7 @@ UniformDistribution = R6::R6Class("UniformDistribution", inherit=Distribution, p
 MirroredKumaraswamyDistribution = R6::R6Class("MirroredKumaraswamyDistribution", inherit=Distribution, public=list(
   #' @field mode the mode of the kumaraswamy
   mode=NULL,
-  #' @field sigma the iqr of the normal distribuition
+  #' @field iqr the iqr of the normal distribuition
   iqr=NULL,
   #' @description Kumaraswamy distribution
      #' @param mode the mode of the distribution
@@ -249,7 +249,7 @@ MirroredKumaraswamyDistribution = R6::R6Class("MirroredKumaraswamyDistribution",
 KumaraswamyDistribution = R6::R6Class("KumaraswamyDistribution", inherit=Distribution, public=list(
   #' @field mode the mode of the kumaraswamy
      mode=NULL,
-     #' @field sigma the iqr of the normal distribuition
+     #' @field iqr the iqr of the normal distribuition
      iqr=NULL,
      #' @description Kumaraswamy distribution
      #' @param mode the mode of the distribution

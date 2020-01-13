@@ -134,6 +134,7 @@ sgolayTable = function(polynomialOrder, filterLength, derivative) {
   ))
 }
 
+#' adjust the coefficients of a SGoly filter (WIP)
 #' @param sgolayTable - a data frame containing the sgolay coefficients joined to a data set
 #' @param sampleSizeVar - the colum containing the sample size it is to be applied to
 #' @export
@@ -145,6 +146,7 @@ coefficientAdj = function(sgolayTable, sampleSizeVar) {
 # tibble(group = c(1,1,1,2,2,2,2), value=runif(7)) %>% group_by(group) %>% mutate(N=n())
 # tibble(group = sample.int(4,size=100,replace=TRUE), value=rnorm(100))
 
+#' apply a sgolay filter (WIP)
 #' @param df - a potentially grouped data frame with continuous observations
 #' @param continuousVar - the column containing the samples
 #' @param k_05 - the half value of the filter width

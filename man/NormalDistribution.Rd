@@ -17,7 +17,7 @@ Get a normal distribution wrapper
 \describe{
 \item{\code{mu}}{the mean of the normal distribuition}
 
-\item{\code{sigma}}{the}
+\item{\code{sigma}}{the sigma value for the distribution}
 }
 \if{html}{\out{</div>}}
 }
