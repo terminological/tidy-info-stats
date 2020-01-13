@@ -9,11 +9,11 @@
 #' @export
 calculateEntropy = function(df, groupVars, method, ...) {
   switch (method,
-          MontgomerySmith = calculateEntropy_MontgomerySmith(df, {{groupVars}}, ...),
-          Histogram = calculateEntropy_Histogram(df, {{groupVars}}, ...),
-          Grassberger = calculateEntropy_Grassberger(df, {{groupVars}}, ...),
-          InfoTheo = calculateEntropy_InfoTheo(df, {{groupVars}}, ...),
-          Compression = calculateEntropy_Compression(df, {{groupVars}}, ...),
+          MontgomerySmith = calculateEntropy_MontgomerySmith(df, groupVars, ...),
+          Histogram = calculateEntropy_Histogram(df, groupVars, ...),
+          Grassberger = calculateEntropy_Grassberger(df, groupVars, ...),
+          InfoTheo = calculateEntropy_InfoTheo(df, groupVars, ...),
+          Compression = calculateEntropy_Compression(df, groupVars, ...),
           {stop(paste0(method," not a valid option"))}
   )
 }
@@ -54,7 +54,7 @@ calculateEntropy_MontgomerySmith = function(df, groupVars, orderingVar = NULL, .
   tmp = tmp %>% group_by(!!!grps) %>% arrange(seq) %>% mutate(
     rank = row_number(),
     N = n()
-  ) %>% group_mutate(
+  ) %>% groupMutate(
     C_x = n_distinct(!!!groupVars)
   )
   
@@ -108,21 +108,21 @@ calculateEntropy_Histogram = function(df, groupVars, mm=TRUE, ...) {
   grps = df %>% groups()
   # groupVars = ensyms(groupVars)
   
-  tmp = df %>% ungroup() %>% group_by(!!!grps) %>% group_mutate(
+  tmp = df %>% ungroup() %>% group_by(!!!grps) %>% groupMutate(
     N = n(),
-    C_x = n_distinct(!!!groupVars)
+    C = n_distinct(!!!groupVars)
   )
   
-  tmp2 = tmp %>% ungroup() %>% group_by(!!!grps, !!!groupVars, N, C_x) %>% summarise(
-    NX = n()
+  tmp2 = tmp %>% ungroup() %>% group_by(!!!grps, !!!groupVars, N, C) %>% summarise(
+    N_x = n()
   ) %>% mutate(
-    p_x = as.double(NX)/N,
-    mmAdj = as.double(C_x-1)/(2*N),
-    H_x = -p_x*log(p_x) # /log(C_x)
+    p_x = as.double(N_x)/N,
+    mmAdj = as.double(C-1)/(2*N),
+    I_x = -log(p_x) # /log(C_x)
   )
   
   tmp3 = tmp2 %>% ungroup() %>% group_by(!!!grps) %>% summarise(
-    H = sum(H_x,na.rm = TRUE)+ifelse(mm,max(mmAdj),0),
+    H = sum(p_x*I_x,na.rm = TRUE)+ifelse(mm,max(mmAdj),0),
     H_sd = NA
   )
   
@@ -145,7 +145,7 @@ calculateEntropy_Grassberger = function(df, groupVars, ...) {
   grps = df %>% groups()
   # groupVars = ensyms(groupVars)
   
-  tmp = df %>% ungroup() %>% group_by(!!!grps) %>% group_mutate(
+  tmp = df %>% ungroup() %>% group_by(!!!grps) %>% groupMutate(
     N = n()
     # C_x = n_distinct(!!!groupVars)
   )

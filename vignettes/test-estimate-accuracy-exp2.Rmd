@@ -13,8 +13,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 library(tidyverse)
 library(ggplot2)
 library(standardPrintOutput)
-library(tidyinfostats)
-#devtools::load_all("..")
+#library(tidyinfostats)
+devtools::load_all("..")
 set.seed(101)
 theme_set(standardPrintOutput::defaultFigureLayout())
 ```
@@ -66,7 +66,7 @@ experiment2 = function(reps,meth = c("KWindow","KNN","SGolay","DiscretiseByRank"
     
     df = distribution$sample((sample.int(6,1)+1)*100)
     
-    estMi = sapply(meth, function(m) calculateDiscreteContinuousMI(df, y, x, method = m) %>% pull(I))
+    estMi = sapply(meth, function(m) calculateDiscreteContinuousMI(df, vars(y), x, method = m) %>% pull(I))
     #estMean = mean(df$x)
     #estSd = sd(df$x)
     

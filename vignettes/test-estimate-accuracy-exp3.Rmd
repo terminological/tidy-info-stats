@@ -13,8 +13,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 library(tidyverse)
 library(ggplot2)
 library(standardPrintOutput)
-library(tidyinfostats)
-#devtools::load_all("..")
+#library(tidyinfostats)
+devtools::load_all("..")
 set.seed(101)
 theme_set(standardPrintOutput::defaultFigureLayout())
 ```
@@ -52,9 +52,9 @@ squareWaves$withDistribution(0.5,UniformDistribution$new(min=0.2,max=1.3))
 
 ```{r}
 lognorm = ConditionalDistribution$new()
-lognorm$withDistribution(0.5,LogNormalDistribution$new(mode=0.5,sd=0.25))
-lognorm$withDistribution(1,LogNormalDistribution$new(mode=1.5,sd=1))
-lognorm$withDistribution(0.3,LogNormalDistribution$new(mode=2.5,sd=0.5))
+lognorm$withDistribution(0.5,LogNormalDistribution$new(mode=0.5,var=0.25))
+lognorm$withDistribution(1,LogNormalDistribution$new(mode=1.5,var=1))
+lognorm$withDistribution(0.3,LogNormalDistribution$new(mode=2.5,var=0.5))
 ```
 
 # Experiment 3
@@ -88,7 +88,7 @@ experiment3 = function(distribution, reps, meth = c("KWindow","KNN","SGolay","Di
       minGroupSize = min(df %>% group_by(y) %>% count() %>% pull(n))
       estMi = sapply(meth, function(m) {
         # browser()
-        calculateDiscreteContinuousMI(df, y, x, method = m) %>% pull(I)
+        calculateDiscreteContinuousMI(df, vars(y), x, method = m) %>% pull(I)
       })
       estMean = mean(df$x)
       estSd = sd(df$x)

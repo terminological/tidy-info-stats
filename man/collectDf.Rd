@@ -9,7 +9,7 @@ collectDf(df, collect)
 \arguments{
 \item{df}{- a dataframe}
 
-\item{collect}{- boolean, should the table be collected if it si a dbplyr table.}
+\item{collect}{- boolean, should the table be collected if it is a dbplyr table.}
 }
 \description{
 Fail if table is a dbplyr table and the user does not request collection

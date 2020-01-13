@@ -6,7 +6,7 @@
 \usage{
 calculateDiscreteContinuousMI_KWindow(
   df,
-  discreteVar,
+  discreteVars,
   continuousVar,
   k_05 = 4,
   ...
@@ -15,7 +15,7 @@ calculateDiscreteContinuousMI_KWindow(
 \arguments{
 \item{df}{- may be grouped, in which case the value is interpreted as different types of continuous variable}
 
-\item{discreteVar}{- the column of the categorical value (X)}
+\item{discreteVars}{- the column(s) of the categorical value (X) quoted by vars(...)}
 
 \item{continuousVar}{- the column of the continuous value (Y)}
 

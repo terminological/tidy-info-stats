@@ -114,3 +114,20 @@ mi = function(p_x1y1, p_x0y1, p_x1y0) {
 
 # TODO:
 # accuracy, sensitivity, specificity, etc...
+
+#' calculate mutual information from probabilities - see calculateConfusionMatrixStats to generate these probabilities from count information
+#' 
+#' in the terminology here x is prediction and y is outcome / gold standard
+#'
+#' @param p_x1y1 probability of cooccurrence of x and y - true positives.
+#' @param p_x0y1 probability of occurrence of y without x - false positives
+#' @param p_x1y0 probability of occurrence of x without y - false negatives
+#' @param betathe beta coefficient for the f score
+#' @return the fBeta score
+#' @export 
+fBeta = function(p_x1y1, p_x0y1, p_x1y0, beta=1) {
+  notValid = (p_x1y1 < 0.0 | p_x1y1 > 1.0 | p_x0y1 < 0.0 | p_x0y1 > 1.0 | p_x1y0 < 0.0 | p_x1y0 > 1.0 );
+  return(ifelse(notValid,NaN,
+    (1+beta^2)*p_x1y1 / ( (1+beta^2)*p_x1y1 + beta^2*p_x1y0 + p_x0y1 )
+  ))
+}

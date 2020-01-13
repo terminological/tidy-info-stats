@@ -2,8 +2,8 @@
 #'
 #' The purpose of this is to make it possible to calculate MI in a DBPLYR sql table
 #' 
-#' @param df a dataframe containing one observation per row & p_x1, p_x0, p_y1, p_y0, p_x1y1, p_x0y1, p_x1y0, and p_x0y0 columns (see probabilitiesFromCounts)
-#' @return the datatable with additional columns for MI; PMI0 and PMI1; for all various combinations of outcome
+#' @param df a dataframe containing one observation per row & full confusion matrix and marginal probabilities: i.e. p_x1, p_x0, p_y1, p_y0, p_x1y1, p_x0y1, p_x1y0, and p_x0y0 columns (see probabilitiesFromCounts)
+#' @return the datatable with additional columns for entropy, mutual information, pointwise mutual information and normalised pointwise mutual information for all various combinations of outcome
 #' @import dplyr
 #' @export
 calculateBinaryMI = function(df) {
@@ -38,8 +38,10 @@ calculateBinaryMI = function(df) {
 #' this will come from some sort of threshold based classification task where the classification output
 #' is a probability and the prediction class is a binary outcome.
 #' 
+#' see also fBeta score vectorised function
+#' 
 #' @param df a dataframe containing one observation per row & p_x1y1, p_x0y1, p_x1y0, and p_x0y0 columns (see probabilitiesFromConfusionMatrix)
-#' @return the datatable with additional columns for true_pos_rate / true_neg_rate / etc...
+#' @return the datatable with additional columns for confusion matrix stats: true_pos_rate / true_neg_rate / etc...
 #' @import dplyr
 #' @export
 calculateConfusionMatrixStats = function(df) {

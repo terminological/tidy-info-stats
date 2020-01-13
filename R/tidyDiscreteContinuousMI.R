@@ -1,23 +1,23 @@
 #' calculate mutual information between a categorical value (X) and a continuous value (Y)
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
-#' @param groupXVar - the column of the categorical value (X)
-#' @param valueYVar - the column of the continuous value (Y)
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
+#' @param continuousVar - the column of the continuous value (Y)
 #' @param method - the method employed - valid options are "KWindow","KNN","SGolay","DiscreteByRank","DiscreteByValue","Compression","Entropy".
 #' @param ... - the other parameters are passed onto the implementations
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousMI = function(df, groupXVar, valueYVar, method="KWindow", ...) {
+calculateDiscreteContinuousMI = function(df, discreteVars, continuousVar, method="KWindow", ...) {
   switch (method,
-    KWindow = calculateDiscreteContinuousMI_KWindow(df, {{groupXVar}}, {{valueYVar}}, ...),
-    KNN = calculateDiscreteContinuousMI_KNN(df, {{groupXVar}}, {{valueYVar}}, ...),
-    SGolay = calculateDiscreteContinuousMI_SGolay(df, {{groupXVar}}, {{valueYVar}}, ...),
-    DiscretiseByRank = calculateDiscreteContinuousMI_DiscretiseByRank(df, {{groupXVar}}, {{valueYVar}}, ...),
-    DiscretiseByValue = calculateDiscreteContinuousMI_DiscretiseByValue(df, {{groupXVar}}, {{valueYVar}}, ...),
-    Compression = calculateDiscreteContinuousMI_Compression(df, {{groupXVar}}, {{valueYVar}}, ...),
+    KWindow = calculateDiscreteContinuousMI_KWindow(df, discreteVars, {{continuousVar}}, ...),
+    KNN = calculateDiscreteContinuousMI_KNN(df, discreteVars, {{continuousVar}}, ...),
+    SGolay = calculateDiscreteContinuousMI_SGolay(df, discreteVars, {{continuousVar}}, ...),
+    DiscretiseByRank = calculateDiscreteContinuousMI_DiscretiseByRank(df, discreteVars, {{continuousVar}}, ...),
+    DiscretiseByValue = calculateDiscreteContinuousMI_DiscretiseByValue(df, discreteVars, {{continuousVar}}, ...),
+    Compression = calculateDiscreteContinuousMI_Compression(df, discreteVars, {{continuousVar}}, ...),
     {stop(paste0(method," not a valid option"))}
-    # Entropy = calculateDiscreteContinuousMI_Entropy(df, {{groupXVar}}, {{valueYVar}}, method="Empirical", ...),
+    
   )
 }
 
@@ -25,45 +25,37 @@ calculateDiscreteContinuousMI = function(df, groupXVar, valueYVar, method="KWind
 #' calculate mutual information between a categorical value (X) and a continuous value (Y)
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
-#' @param discreteVar - the column of the categorical value (X)
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
 #' @param k_05 - the half window width of the SG filter that smooths the data. This is dependent on data but typically not less that 10.
 #' @param collect - if TRUE will collect dbplyr tables before processing, otherwise (the default) will fail on dbplyr tables
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousMI_SGolay = function(df, discreteVar, continuousVar, k_05=10, collect=FALSE, ...) {
+calculateDiscreteContinuousMI_SGolay = function(df, discreteVars, continuousVar, k_05=10, collect=FALSE, ...) {
   df = collectDf(df,collect)
   grps = df %>% groups()
-  discreteVar = ensym(discreteVar)
+  
   continuousVar = ensym(continuousVar)
-
-  if (length(grps)==0) {
-    grpsList = NULL
-  } else {
-    grpsList = sapply(grps,as.character)
-  }
-  joinList = c(grpsList, as.character(discreteVar))
+  joinList = joinList(df, discreteVars)
   
   # N.B. this whole bit of code is confusing because groups mean 2 things here - the 
   # different types of Y (grps) which should be preserved and the discrete 
-  # NX has group counts (N) and subgroup counts (N_X).
-  groupSize = df %>% group_by(!!!grps,!!discreteVar) %>% summarise(N_X = n()) %>% group_by(!!!grps) %>% mutate(N = sum(N_X,na.rm = TRUE))
+  # NX has group counts (N) and subgroup counts (N_x).
+  tmp = df %>% left_join(df %>% groupwiseCount(discreteVars), by=joinList) %>% labelGroup(discreteVars, x_discrete) %>% mutate(y_continuous=!!continuousVar)
   
-  # if (min(groupSize$N_X) < k_05*2+1) {
+  # if (min(groupSize$N_x) < k_05*2+1) {
   #   return(df %>% group_by(!!!grps) %>% summarise(I = NA))
   # }
   
-  # sort by valueYVar
+  # sort by continuousVar
   # assign ungrouped rank (rank)
-  # apply grouping groupXVar and sort by valueYVar within group
+  # apply grouping discreteVar and sort by continuousVar within group
   # rank within outcome group (groupRank)
   # View(tmp %>% filter(outcome=="low" & test=="K")) # verify collisions get a random rank
   
-  tmp = df %>% inner_join(groupSize, by=joinList) %>% mutate(
-    y_continuous=!!continuousVar,
-    x_discrete=!!discreteVar)
-  # get the group wise pdfs (i.e. p_y_given_x) at every observation point in class X
+  
+  # get the group wise pdfs (i.e. p_y_giveN_x) at every observation point in class X
   # process with X grouped and ordered by Y within groups
   # value of Y wrt rank of Y is an inverse CDF function. This is evenly spaced on rank of Y
   # spacing of rank depends on the number of observations (and actually we don't need the value)
@@ -73,27 +65,29 @@ calculateDiscreteContinuousMI_SGolay = function(df, discreteVar, continuousVar, 
   tmp2 = tmp %>%  group_by(!!!grps,x_discrete) %>% arrange(y_continuous) %>% group_modify(
     function(d,...) {
       k = k_05*2+1
-      samples = min(d$N_X)
+      samples = min(d$N_x,na.rm=TRUE)
       #if (k >= samples) k = samples-samples%%2-1
       if (k < samples-1) {
+        d_xy_d_r = signal::sgolayfilt(d$y_continuous, p=2, n=k, m=1, ts=1.0/samples)
+        d_xy_d_r = ifelse(d_xy_d_r <= 0, 0.0001, d_xy_d_r)
         return(
           tibble(
-            N_X = d$N_X,
+            N_x = d$N_x,
             N = d$N,
             y_continuous = d$y_continuous,
-            d_xy_d_r = signal::sgolayfilt(d$y_continuous, p=2, n=k, m=1, ts=1.0/samples)
+            d_xy_d_r = d_xy_d_r # prevent negative gradient - d_x_d_r is an inverse cdf - always positive
           ) %>% mutate(
-            p_y_given_x = 1.0/d_xy_d_r
+            p_y_giveN_x = 1.0/d_xy_d_r
           )
         )
       } else {
         return(
           tibble(
-            N_X = d$N_X,
+            N_x = d$N_x,
             N = d$N,
             y_continuous = d$y_continuous,
             d_xy_d_r = rep(NA,length(d$y_continuous)), 
-            p_y_given_x = rep(NA,length(d$y_continuous)) 
+            p_y_giveN_x = rep(NA,length(d$y_continuous)) 
           )
         )
       }
@@ -107,34 +101,36 @@ calculateDiscreteContinuousMI_SGolay = function(df, discreteVar, continuousVar, 
       samples = min(d$N,na.rm = TRUE)
       # if (k >= samples) k = samples-samples%%2-1
       if (k < samples-1) {
+        d_y_d_r = signal::sgolayfilt(d$y_continuous, p=2, n=k, m=1, ts=1.0/samples)
+        d_y_d_r = ifelse(d_y_d_r <= 0, 0.0001, d_y_d_r)
         return(
           tibble(
-            N_X=d$N_X,
+            N_x=d$N_x,
             N = d$N,
-            x_discrete = d$x_discrete,
             y_continuous = d$y_continuous,
-            p_y_given_x = d$p_y_given_x,
+            x_discrete = d$x_discrete,
+            p_y_giveN_x = d$p_y_giveN_x,
             d_xy_d_r = d$d_xy_d_r,
-            d_y_d_r = signal::sgolayfilt(d$y_continuous, p=2, n=k, m=1, ts=1.0/samples)
+            d_y_d_r = d_y_d_r # prevent negative gradient - d_x_d_r is an inverse cdf - always positive
           ) %>% mutate(
             p_y = 1.0/d_y_d_r,
-            p_x = as.double(N_X)/N
+            p_x = as.double(N_x)/N
           ) %>% mutate(
-            pmi_xy = p_x*p_y_given_x*log(p_y_given_x/p_y)
+            pmi_xy = p_x*p_y_giveN_x*log(p_y_giveN_x/p_y)
           )
         )
       } else {
         return(
           tibble(
-            N_X=d$N_X,
+            N_x=d$N_x,
             N = d$N,
-            x_discrete = d$x_discrete,
             y_continuous = d$y_continuous,
-            p_y_given_x = d$p_y_given_x,
+            x_discrete = d$x_discrete,
+            p_y_giveN_x = d$p_y_giveN_x,
             d_xy_d_r = d$d_xy_d_r,
             d_y_d_r = rep(NA,length(d$y_continuous)),
             p_y = rep(NA,length(d$y_continuous)),
-            p_x = as.double(N_X)/N,
+            p_x = as.double(N_x)/N,
             pmi_xy = rep(NA,length(d$y_continuous)) 
           )
         )
@@ -146,15 +142,16 @@ calculateDiscreteContinuousMI_SGolay = function(df, discreteVar, continuousVar, 
   # points are not evenly spaced in y dimension so piecewise integration
   tmp3 = tmp2 %>% group_by(!!!grps,x_discrete) %>% arrange(y_continuous) %>% mutate(
     # integrate over dy ( well does the trapeziod part of the integration
+    # TODO: this integegration could be improved. lead(pmi_xy,default = 0)
     d_I_d_xy = (pmi_xy+lag(pmi_xy,1,default=0))*as.double(y_continuous-lag(y_continuous))/2
   ) %>% group_by(!!!grps) %>% summarise (
-    min_N_X = min(N_X),
-    I = sum(d_I_d_xy,na.rm=TRUE),
+    min_N_x = min(N_x),
+    I = sum(d_I_d_xy,na.rm=TRUE), # this does the sum over x and computes the integral over y at the same time.
     I_sd = NA,
     method = "SGolay"
   ) %>% mutate(
-    I = ifelse(min_N_X-1 < k_05*2+1,NA,I)
-  ) %>% select(-min_N_X)
+    I = ifelse(min_N_x-1 < k_05*2+1,NA,I)
+  ) %>% select(-min_N_x)
   
   
   
@@ -169,17 +166,16 @@ calculateDiscreteContinuousMI_SGolay = function(df, discreteVar, continuousVar, 
 #' and makes this algorithm simple to implement in dbplyr tables.
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
-#' @param discreteVar - the column of the categorical value (X)
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
 #' @param k_05 - half the sliding window width - this should be a small number like 1,2,3.
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousMI_KWindow = function(df, discreteVar, continuousVar, k_05=4, ...) { 
+calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar, k_05=4, ...) { 
   k_05 = as.integer(k_05)
   if (k_05<2) k_05=2
   grps = df %>% groups()
-  discreteVar = ensym(discreteVar)
   continuousVar = ensym(continuousVar)
   
   if (length(grps)==0) {
@@ -187,31 +183,30 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVar, continuousVar,
   } else {
     grpsList = sapply(grps,as.character)
   }
-  joinList = c(grpsList, as.character(discreteVar))
+  joinList = c(grpsList, as.vector(sapply(discreteVars,as_label)))
   
-  df = df %>% select(!!!grps,!!discreteVar,!!continuousVar)
+  df = df %>% select(!!!grps,!!!discreteVars,!!continuousVar)
   # this is confusing because groups mean 2 things here - the 
   # different types of Y (grps) which should be preserved and the categorical X 
-  # NX has group counts (N) and subgroup counts (N_X) 
-  grpCounts = df %>% group_by(!!!grps,!!discreteVar) %>% summarise(N_X = n()) %>% group_by(!!!grps) %>% mutate(N = sum(N_X, na.rm=TRUE)) %>% compute()
+  # NX has group counts (N) and subgroup counts (N_x) 
+  grpCounts = df %>% group_by(!!!grps,!!!discreteVars) %>% summarise(N_x = n()) %>% group_by(!!!grps) %>% mutate(N = sum(N_x, na.rm=TRUE)) %>% compute()
   
   tmp = df %>% inner_join(grpCounts, by=joinList) %>% mutate(
-    x_discrete=!!discreteVar,
     y_continuous=!!continuousVar)
   
   # the knn approach without using neighbours - i.e. a k wide sliding window
   tmp4 = tmp %>% group_by(!!!grps) %>% arrange(y_continuous) %>% mutate(rank = row_number())
-  tmp4 = tmp4 %>% group_by(!!!grps,x_discrete) %>% arrange(y_continuous) %>% mutate(
+  tmp4 = tmp4 %>% group_by(!!!grps,!!!discreteVars) %>% arrange(y_continuous) %>% mutate(
     
     # correct k for tails of distributions exclusive
     # kRank = row_number(),
     # m_i = lead(rank,n=k_05,default=max(N))-lag(rank,n=k_05,default=1)+1L,
-    # k = lead(kRank,n=k_05,default=max(N_X))-lag(kRank,n=k_05,default=1)+1L
+    # k = lead(kRank,n=k_05,default=max(N_x))-lag(kRank,n=k_05,default=1)+1L
     
     # correct k for tails of distributions inclusive
     # kRank = row_number(),
     # m_i = lead(rank,n=k_05,default=max(N))-lag(rank,n=k_05,default=1),
-    # k = lead(kRank,n=k_05,default=max(N_X))-lag(kRank,n=k_05,default=1)
+    # k = lead(kRank,n=k_05,default=max(N_x))-lag(kRank,n=k_05,default=1)
     
     # dont correct k & exclude tails
     k = k_05*2,
@@ -229,34 +224,41 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVar, continuousVar,
   tmp4 = tmp4 %>% 
     calculateDigamma(k,digammak) %>% 
     calculateDigamma(N,digammaN) %>% 
-    calculateDigamma(N_X,digammaN_X) %>% 
+    calculateDigamma(N_x,digammaN_x) %>% 
     calculateDigamma(m_i,digammam_i) %>% 
     mutate(
-      I_i = digammaN-digammaN_X+digammak-digammam_i
+      I_i = digammaN-digammaN_x+digammak-digammam_i
     )
   
   tmp5 = tryCatch(
-    tmp4 %>% filter(!is.na(I_i)) %>% group_by(!!!grps) %>% summarize(
+    tmp4 %>% filter(!is.na(I_i)) %>% group_by(!!!grps,!!!discreteVars) %>% summarize(
       # TODO: catch the NaN when no group is larger that k_05*2+1
-      I = mean(I_i,na.rm = TRUE),
-      I_sd = sd(I_i,na.rm = TRUE)/sqrt(max(N,na.rm=TRUE)),
-      method = "KWindow"
+      p_x = max(N_x/N),
+      I_y_giveN_x = mean(I_i,na.rm = TRUE),
+      I_y_giveN_x_sd = sd(I_i,na.rm = TRUE)/sqrt(max(N,na.rm=TRUE))
     ),
     warning = function(w) {
       tmp4 %>% filter(!is.na(I_i)) %>% group_by(!!!grps) %>% summarize(
-        I = NA,
-        I_sd = NA,
-        method = "KWindow"
+        p_x = max(N_x/N),
+        I_y_giveN_x = NA,
+        I_y_giveN_x_sd = NA
       )
     }
   )
-  return(tmp5)
+  
+  tmp6 = tmp5 %>% group_by(!!!grps) %>% summarise(
+    I = sum(p_x * I_y_giveN_x),
+    I_sd = sum(p_x * I_y_giveN_x_sd),
+    method = "KWindow"
+  )
+  
+  return(tmp6)
 }
 
 #' calculate mutual information between a categorical value (X) and a continuous value (Y) using a discretisation and discrete MNI estimators
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
-#' @param discreteVar - the column of the categorical value (X)
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
 #' @param bins - the number of bins
 #' @param binStrategy - the a function to genereate the bins on a group by group basis
@@ -264,25 +266,23 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVar, continuousVar,
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousMI_DiscretiseByRank = function(df, discreteVar, continuousVar, bins=NA, binStrategy = linearBySize(slope=8,minBins=4,maxBins=100), discreteMethod="Histogram", ...) {
-  discreteVar = ensym(discreteVar)
+calculateDiscreteContinuousMI_DiscretiseByRank = function(df, discreteVars, continuousVar, bins=NA, binStrategy = linearBySize(slope=8,minBins=4,maxBins=100), discreteMethod="Histogram", ...) {
   continuousVar = ensym(continuousVar)
   grps = df %>% groups()
   
   tmp = df %>% rename(
-    x_discrete=!!discreteVar,
     y_continuous=!!continuousVar
   )
   
   tmp = tmp %>% discretise_ByRank(y_continuous, y_discrete, bins, binStrategy) %>% compute()
-  return(tmp %>% calculateDiscreteDiscreteMI(x_discrete, y_discrete, method=discreteMethod, ...) %>% collect() %>% mutate(method = paste0("DiscretiseByRank - ",method)))
+  return(tmp %>% calculateDiscreteDiscreteMI(discreteVars, vars(y_discrete), method=discreteMethod, ...) %>% collect() %>% mutate(method = paste0("DiscretiseByRank - ",method)))
   
 }
 
 #' calculate mutual information between a categorical value (X) and a continuous value (Y) using a discretisation and infotheo
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
-#' @param discreteVar - the column of the categorical value (X)
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
 #' @param bins - the number of bins
 #' @param binStrategy - the a function to genereate the bins on a group by group basis
@@ -290,19 +290,17 @@ calculateDiscreteContinuousMI_DiscretiseByRank = function(df, discreteVar, conti
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousMI_DiscretiseByValue = function(df, discreteVar, continuousVar, bins=NA, binStrategy = linearBySize(slope=8,minBins=4,maxBins=100), discreteMethod="Histogram", ...) {
-  discreteVar = ensym(discreteVar)
+calculateDiscreteContinuousMI_DiscretiseByValue = function(df, discreteVars, continuousVar, bins=NA, binStrategy = linearBySize(slope=8,minBins=4,maxBins=100), discreteMethod="Histogram", ...) {
   continuousVar = ensym(continuousVar)
   grps = df %>% groups()
   
   tmp = df %>% rename(
-    x_discrete=!!discreteVar,
     y_continuous=!!continuousVar
   )
   
   tmp = tmp %>% discretise_ByValue(y_continuous, y_discrete, bins, binStrategy) %>% compute()
   
-  return(tmp %>% calculateDiscreteDiscreteMI(x_discrete, y_discrete, method=discreteMethod, ...) %>% collect() %>% mutate(method = paste0("DiscretiseByValue - ",method)))
+  return(tmp %>% calculateDiscreteDiscreteMI(discreteVars, vars(y_discrete), method=discreteMethod, ...) %>% collect() %>% mutate(method = paste0("DiscretiseByValue - ",method)))
   
   #return(
   #  df %>% group_modify(function(d,...) {
@@ -324,24 +322,23 @@ calculateDiscreteContinuousMI_DiscretiseByValue = function(df, discreteVar, cont
 #' But it is very slow. Empirically it also does not give any better estimate that the KWindow method.
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
-#' @param discreteVar - the column of the categorical value (X)
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
 #' @param k_05 - half the sliding window width - this should be a small number like 1,2,3.
 #' @param useKWindow - will switch to using the much faster KWindow estimator for larger sample sizes (>500) when the difference between the 2 methods is negligable
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousMI_KNN = function(df, discreteVar, continuousVar, k_05=4, useKWindow = TRUE,...) { #a=0.992, b=1) {
+calculateDiscreteContinuousMI_KNN = function(df, discreteVars, continuousVar, k_05=4, useKWindow = TRUE,...) { #a=0.992, b=1) {
   grps = df %>% groups()
   maxN = df %>% group_by(!!!grps) %>% summarise(N = n()) %>% summarise(maxN = max(N, na.rm=TRUE)) %>% pull(maxN)
   if(maxN > 500 && useKWindow) {
     # warning("using KWindow method instead of KNN for larger sample")
-    return(calculateDiscreteContinuousMI_KWindow(df,{{discreteVar}}, {{continuousVar}}, k_05))
+    return(calculateDiscreteContinuousMI_KWindow(df, discreteVars, {{continuousVar}}, k_05))
   }
   #if (length(df) > 500) df = sample(df,size=500)
   k_05 = as.integer(k_05)
   if (k_05<2) k_05=2
-  discreteVar = ensym(discreteVar)
   continuousVar = ensym(continuousVar)
   
   if (length(grps)==0) {
@@ -349,24 +346,25 @@ calculateDiscreteContinuousMI_KNN = function(df, discreteVar, continuousVar, k_0
   } else {
     grpsList = sapply(grps,as.character)
   }
-  joinList = c(grpsList, as.character(discreteVar))
+  joinList = c(grpsList, as.vector(sapply(discreteVars,as_label)))
   
-  df = df %>% select(!!!grps,!!discreteVar,!!continuousVar)
+  df = df %>% select(!!!grps,!!!discreteVars,!!continuousVar)
   # this is confusing because groups mean 2 things here - the 
   # different types of Y (grps) which should be preserved and the categorical X 
-  # NX has group counts (N) and subgroup counts (N_X) 
-  grpCounts = df %>% group_by(!!!grps,!!discreteVar) %>% summarise(N_X = n()) %>% group_by(!!!grps) %>% mutate(N = sum(N_X,na.rm = TRUE)) %>% compute()
+  # NX has group counts (N) and subgroup counts (N_x) 
+  grpCounts = df %>% group_by(!!!grps,!!!discreteVars) %>% summarise(
+    N_x = n()) %>% group_by(!!!grps) %>% groupMutate(N = sum(N_x,na.rm = TRUE)) %>% arrange(!!!discreteVars) %>% mutate(x_discrete=row_number()) %>% compute()
   
   # add in overall counts of groups
   tmp = df %>% inner_join(grpCounts, by=joinList) %>% mutate(
-    x_discrete=!!discreteVar,
-    y_continuous=!!continuousVar)
+    y_continuous=!!continuousVar
+  )
   
   # add row numbers of sequence - sorted by value, and sorted by value in groups
   tmp = tmp %>% group_by(!!!grps) %>% arrange(y_continuous) %>% mutate(rank = row_number()) %>% 
-    group_by(!!!grps,x_discrete) %>% arrange(y_continuous) %>% mutate(groupRank = row_number()) %>% compute()
+    group_by(!!!grps,!!!discreteVars) %>% arrange(y_continuous) %>% mutate(groupRank = row_number()) %>% compute()
   
-  tmp = tmp %>% group_by(!!!grps,x_discrete) %>% arrange(y_continuous) %>% mutate(
+  tmp = tmp %>% group_by(!!!grps,!!!discreteVars) %>% arrange(y_continuous) %>% mutate(
     rankMax = lead(rank,n=k_05*2),
     rankMin = lag(rank,n=k_05*2,1)
   ) %>% mutate(rankMax = ifelse(is.na(rankMax),N,rankMax))
@@ -375,11 +373,11 @@ calculateDiscreteContinuousMI_KNN = function(df, discreteVar, continuousVar, k_0
   join2List = c(grpsList, "join")
   
   # rhs of join by value
-  tmp_join = tmp %>% mutate(join=1) %>% rename(
-    y_continuous_knn = y_continuous, 
+  tmp_join = tmp %>% ungroup() %>% mutate(join=1) %>% rename(
+    y_continuous_knn = y_continuous,
     x_discrete_knn = x_discrete,
     rank_knn = rank) %>%
-    select(!!!grps,join,y_continuous_knn,x_discrete_knn, rank_knn) %>% compute()
+    select(!!!grps,x_discrete_knn,join,y_continuous_knn,rank_knn) %>% compute()
   
   # TODO: this is unuseably inefficient
   
@@ -396,10 +394,10 @@ calculateDiscreteContinuousMI_KNN = function(df, discreteVar, continuousVar, k_0
   tmp4 = tmp4 %>% 
     calculateDigamma(k,digammak) %>% 
     calculateDigamma(N,digammaN) %>% 
-    calculateDigamma(N_X,digammaN_X) %>% 
+    calculateDigamma(N_x,digammaN_x) %>% 
     calculateDigamma(m_i,digammam_i) %>% 
     mutate(
-      I_i = digammaN-digammaN_X+digammak-digammam_i
+      I_i = digammaN-digammaN_x+digammak-digammam_i
     )
   
   tmp5 = tryCatch(tmp4 %>% filter(!is.na(I_i)) %>% group_by(!!!grps) %>% summarize(
@@ -428,21 +426,19 @@ calculateDiscreteContinuousMI_KNN = function(df, discreteVar, continuousVar, k_0
 #' Universal and accessible entropy estimation using a compression algorithm Ram Avinery, Micha Kornreich, Roy Beck https://arxiv.org/abs/1709.10164
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
-#' @param discreteVar - the column of the categorical value (X)
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
 #' @param collect - unless TRUE this function will fail on dbplyr tables as there is no SQL implementation
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousMI_Compression = function(df, discreteVar, continuousVar, collect=FALSE, ...) {
+calculateDiscreteContinuousMI_Compression = function(df, discreteVars, continuousVar, collect=FALSE, ...) {
   df = collectDf(df,collect)
   grps = df %>% groups()
-  discreteVar = ensym(discreteVar)
   continuousVar = ensym(continuousVar)
   
   tmp = df %>% rename(
-    y_continuous=!!continuousVar,
-    x_discrete=!!discreteVar
+    y_continuous=!!continuousVar
   ) 
   
   if (length(grps)==0) {
@@ -492,7 +488,7 @@ calculateDiscreteContinuousMI_Compression = function(df, discreteVar, continuous
   # ) %>% mutate(join=1)
   
   # entropy of Y given X=x
-  tmp4 = tmp2 %>% group_by(!!!grps,x_discrete) %>% group_modify(compressionEntropy) %>% rename(NX = N, Hygivenx = H) %>% 
+  tmp4 = tmp2 %>% group_by(!!!grps,!!!discreteVars) %>% group_modify(compressionEntropy) %>% rename(NX = N, Hygivenx = H) %>% 
     group_by(!!!grps) %>% mutate(N = sum(NX))
   
     # NX = n(),

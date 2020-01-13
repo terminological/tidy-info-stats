@@ -13,8 +13,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 library(tidyverse)
 library(ggplot2)
 library(standardPrintOutput)
-library(tidyinfostats)
-#devtools::load_all("..")
+#library(tidyinfostats)
+devtools::load_all("..")
 set.seed(101)
 theme_set(standardPrintOutput::defaultFigureLayout())
 ```
@@ -52,9 +52,9 @@ squareWaves$withDistribution(0.5,UniformDistribution$new(min=0.2,max=1.3))
 
 ```{r}
 lognorm = ConditionalDistribution$new()
-lognorm$withDistribution(0.5,LogNormalDistribution$new(mode=0.5,sd=0.25))
-lognorm$withDistribution(1,LogNormalDistribution$new(mode=1.5,sd=1))
-lognorm$withDistribution(0.3,LogNormalDistribution$new(mode=2.5,sd=0.5))
+lognorm$withDistribution(0.5,LogNormalDistribution$new(mode=0.5,var=0.25))
+lognorm$withDistribution(1,LogNormalDistribution$new(mode=1.5,var=1))
+lognorm$withDistribution(0.3,LogNormalDistribution$new(mode=2.5,var=0.5))
 ```
 
 ### plot our distributions
@@ -100,7 +100,7 @@ experiment1 = function(distribution, sampleSize, reps) {
   	
   	# SGolay method
 	  k = c(5,7,10,15,20,30,40)
-	  kresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, y, x, method = "SGolay", k_05=k2) %>% pull(I)))
+	  kresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df,vars(y), x, method = "SGolay", k_05=k2) %>% pull(I)))
   	kout = kout %>% bind_rows(tibble(
   			method = rep("SGolay",length(k)),
   			param = rep("filter width",length(k)),
@@ -113,7 +113,7 @@ experiment1 = function(distribution, sampleSize, reps) {
 	
 		# KWindow method
   	k = c(2:10)
-		wresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, y, x, method = "KWindow", k_05=k2) %>% pull(I)))
+		wresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, vars(y), x, method = "KWindow", k_05=k2) %>% pull(I)))
 	  kout = kout %>% bind_rows(tibble(
   			method = rep("KWindow",length(k)),
   			param = rep("window width",length(k)),
@@ -127,7 +127,7 @@ experiment1 = function(distribution, sampleSize, reps) {
 	  # KNN method
   	k = c(2:10)
   	if (nrow(df)<500) {
-		  w2result = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, y, x, method = "KNN", k_05=k2) %>% pull(I)))
+		  w2result = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, vars(y), x, method = "KNN", k_05=k2) %>% pull(I)))
   	} else {
 		  w2result = rep(NA,length(k))
 		}
@@ -146,7 +146,7 @@ experiment1 = function(distribution, sampleSize, reps) {
 	  # binPow = seq(0.1,0.5,0.05)
 	  # k = floor(sampleSize^binPow)
 	  k = c(4,8,16,32,64,128,256)
-	  nresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, y, x, method = "DiscretiseByRank", discreteMethod="Histogram", bins=k2) %>% pull(I)))
+	  nresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, vars(y), x, method = "DiscretiseByRank", discreteMethod="Histogram", bins=k2) %>% pull(I)))
 	  kout = kout %>% bind_rows(tibble(
   			method = rep("Histogram by rank",length(k)),
   			param = rep("number bins",length(k)),
@@ -159,7 +159,7 @@ experiment1 = function(distribution, sampleSize, reps) {
 	  
 	  # DiscretiseValue method
 	  k = c(4,8,16,32,64,128,256)
-	  nresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, y, x, method = "DiscretiseByValue", discreteMethod="Histogram", bins=k2) %>% pull(I)))
+	  nresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, vars(y), x, method = "DiscretiseByValue", discreteMethod="Histogram", bins=k2) %>% pull(I)))
 	  kout = kout %>% bind_rows(tibble(
   			method = rep("Histogram by value",length(k)),
   			param = rep("number bins",length(k)),
@@ -172,7 +172,7 @@ experiment1 = function(distribution, sampleSize, reps) {
 	  
 	  # DiscretiseValue method
 	  k = c(4,8,16,32,64,128,256)
-	  nresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, y, x, method = "DiscretiseByValue", discreteMethod="MontgomerySmith", bins=k2) %>% pull(I)))
+	  nresult = sapply(k, function(k2) (calculateDiscreteContinuousMI(df, vars(y), x, method = "DiscretiseByValue", discreteMethod="MontgomerySmith", bins=k2) %>% pull(I)))
 	  kout = kout %>% bind_rows(tibble(
   			method = rep("Montgomery Smith",length(k)),
   			param = rep("number bins",length(k)),
@@ -185,7 +185,7 @@ experiment1 = function(distribution, sampleSize, reps) {
 	  
 	  # Compression method
 	  k = c(1,2)
-	  nresult = calculateDiscreteContinuousMI(df, y, x, method = "Compression") %>% pull(I)
+	  nresult = calculateDiscreteContinuousMI(df, vars(y), x, method = "Compression") %>% pull(I)
 	  kout = kout %>% bind_rows(tibble(
   			method = rep("Compress",length(k)),
   			param = rep("no param",length(k)),

@@ -14,8 +14,8 @@ library(tidyverse)
 library(ggplot2)
 library(devtools)
 library(standardPrintOutput)
-library(tidyinfostats)
-#devtools::load_all("..")
+#library(tidyinfostats)
+devtools::load_all("..")
 set.seed(101)
 theme_set(standardPrintOutput::defaultFigureLayout())
 ```
@@ -44,8 +44,8 @@ for (i in c(1:100)) {
   for (j in c(1:30)) {
     sampleSize = sample.int(480,1)+20
     df = cd$sample(sampleSize)
-    mi.knn = calculateDiscreteContinuousMI(df, y, x, method = "KNN") %>% pull(I)
-    mi.kwindow = calculateDiscreteContinuousMI(df, y, x, method = "KWindow") %>% pull(I)
+    mi.knn = calculateDiscreteContinuousMI(df, vars(y), x, method = "KNN") %>% pull(I)
+    mi.kwindow = calculateDiscreteContinuousMI(df, vars(y), x, method = "KWindow") %>% pull(I)
     exp0Data = exp0Data %>% rbind(tibble(
       sampleSize = sampleSize,
       mi.knn = mi.knn,

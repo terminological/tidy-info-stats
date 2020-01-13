@@ -8,52 +8,154 @@
 #' @param df a dataframe containing 2 columns defining class of event X and class of event Y and either one row per event, 
 #' or a count of observations, for each class combination. 
 #' df may also be grouped and in which case the grouping is preserved in the result.
-#' @param groupXVar the datatable column defining the class of event X
-#' @param groupXVar the datatable column defining the class of event Y
+#' @param groupXVars the datatable column(s) defining the class of event X quoted by vars(...) e.g. outcomes
+#' @param groupYVars the datatable column(s) defining the class of event Y quoted by vars(...) e.g. predictions
 #' @param countVar the datatable column containing the observed frequency combination of event XY. If this is missing the row count will be used instead
 #' @return A new datatable with all possible combinations of X&Y and the probabilities associated with each outcome (i.e. an N(X) by N(Y) set of binary confusion matrices)
 #' @import dplyr
 #' @export
-probabilitiesFromGroups = function(df, groupXVar, groupYVar, countVar=NULL) {
+probabilitiesFromCooccurrence = function(df, groupXVars, groupYVars, countVar=NULL) {
   grps = df %>% groups()
-  groupXVar = ensym(groupXVar)
-  groupYVar = ensym(groupYVar)
   countVar = tryCatch(ensym(countVar),error = function(e) NULL)
   if (length(grps)==0) {
     grpsList = NULL
   } else {
     grpsList = sapply(grps,as.character)
   }
-  joinList = c(grpsList,"join")
+  joinList = c(grpsList,"tmp_join")
   if (identical(countVar,NULL)) {
     # there is no count column.  The data is grouped and has event X and event Y entried for each occurrence
-    df = df %>% group_by(!!!grps, !!groupXVar, !!groupYVar) %>% summarise(f_xy = n())
+    df = df %>% group_by(!!!grps, !!!groupXVars, !!!groupYVars) %>% summarise(N_xy = n())
   } else {
     # there is a count column.  The data is grouped and has event X and event Y and counts of occurrences
-    df = df %>% group_by(!!!grps, !!groupXVar, !!groupYVar) %>% summarise(f_xy = sum(!!countVar))
+    df = df %>% group_by(!!!grps, !!!groupXVars, !!!groupYVars) %>% summarise(N_xy = sum(!!countVar))
   }
   N = df %>% ungroup() %>% group_by(!!!grps) %>% summarise(
-    N=sum(f_xy) #, this was for miller-madow adj we can do this differently now in tidyinfostats
+    N=sum(N_xy)
+    #, this was for miller-madow adj we can do this differently now in tidyinfostats
     # classes_XY=n_distinct(!!groupXVar,!!groupYVar),
     # classes_X=n_distinct(!!groupXVar), 
     # classes_Y=n_distinct(!!groupYVar)
     ) %>% 
     # mutate(mm_adjust = as.double(classes_X+classes_Y-classes_XY-1)/(2*N)) %>% 
-    mutate(join=1)
+    mutate(tmp_join=1)
   # N = N %>% mutate(classes_XY = nrow(N))
-  X = df %>% ungroup() %>% group_by(!!!grps,!!groupXVar) %>% summarise(f_x = sum(f_xy)) %>% mutate(join=1) # grouping
+  X = df %>% ungroup() %>% group_by(!!!grps,!!!groupXVars) %>% summarise(N_x = sum(N_xy)) %>% mutate(tmp_join=1) # grouping
   # X = X %>% mutate(classes_X = nrow(X))
-  Y = df %>% ungroup() %>% group_by(!!!grps,!!groupYVar) %>% summarise(f_y = sum(f_xy)) %>% mutate(join=1) # grouping
+  Y = df %>% ungroup() %>% group_by(!!!grps,!!!groupYVars) %>% summarise(N_y = sum(N_xy)) %>% mutate(tmp_join=1) # grouping
   #Y = Y %>% mutate(classes_Y = nrow(Y))
   # I__mm = I__emp + (|X| + |Y| - |XY| - 1)/2N
   
   
-  XY = (X %>% inner_join(Y, by=joinList) %>% inner_join(N, by=joinList)) %>% select(-join)
-  joinAll = c(grpsList,as.character(groupXVar),as.character(groupYVar))
+  XY = (X %>% inner_join(Y, by=joinList) %>% inner_join(N, by=joinList)) %>% select(-tmp_join)
+  joinAll = c(grpsList,as.vector(sapply(groupXVars,as_label)),as.vector(sapply(groupYVars,as_label)))
   XY = XY %>% 
     left_join(df, by=joinAll) %>% 
-    mutate( f_xy = ifelse(is.na(f_xy),0,f_xy))
-  return( XY %>% group_by(!!!grps) %>% probabilitiesFromCounts(f_xy,f_x,f_y,N) )
+    mutate( N_xy = ifelse(is.na(N_xy),0,N_xy))
+  return( XY %>% group_by(!!!grps) %>% probabilitiesFromCounts(N_xy,N_x,N_y,N) )
+}
+
+#' Helper function to calculate probability from discrete data in a tidy friendly manner
+#'
+#' The purpose of this is to calculate the probabilities of events from discrete data. 
+#' This function is useful when you have either a set of observations of its occurrence, 
+#' containing non-unique x events, or you have a counts of their events where 
+#' each row has the type of observation of X=x and the countVar column contains the counts of the event.
+#' 
+#' @param df a dataframe containing columns defining class of observations of discrete variable X and either one row per observation, 
+#' or a count of observations for each of the observed values of X. 
+#' df may also be grouped and in which case the grouping is preserved in the result.
+#' @param groupVars the datatable column(s) defining the class of the observation quoted by vars(...)
+#' @param countVar the datatable column containing the observed frequency of the event X. If this is missing the row count will be used instead.
+#' @return A summary datatable with possible values of X and the total (N), the total count of that group (N_x) the probability (p_x), and self information (I_x) associated with the value of X
+#' @import dplyr
+#' @export
+probabilitiesFromDiscrete = function(df, groupVars, countVar=NULL) {
+  grps = df %>% groups()
+  
+  # groupwise count creates an N and N_x  column based on groupVars, and countVar
+  df = df %>% groupwiseCount(groupVars, countVar) %>% mutate(
+    p_x = N_x/N,
+    I_x = -log(p_x) #I_x is self information
+    # entropy of X as an empirical measure will be sum(p_x*I_x) - the average of self information
+  )
+}
+
+#' Helper function to calculate probability from continuous data in a tidy friendly manner
+#'
+#' The purpose of this is to calculate the probabilities of events from continuous data. 
+#' This function is useful when you have a set of observations from a continuous distribution.
+#' 
+#' @param df a dataframe containing a column of a continuous variable X and one row per observation, 
+#' df may also be grouped and in which case the grouping is preserved in the result.
+#' @param continousVar the datatable column(s) containing the observation.
+#' @param k_05 the sgolay smoothing window width.
+#' @return A mutated datatable with observations of X, the total number of observations of X (N), the probability density (p_x), and self information (I_x) associated with the value of X
+#' @import dplyr
+#' @export
+probabilitiesFromContinuous = function(df, continuousVar, k_05 = 10) {
+  continuousVar = ensym(continuousVar)
+  grps = df %>% groups()
+  
+  # groupwise count creates an N and N_x  column based on groupVars, and countVar
+  df = df %>% mutate(
+    tmp_x_continuous = !!continuousVar
+  )
+  
+  tmp2 = df %>%  group_by(!!!grps) %>% arrange(tmp_x_continuous) %>% group_modify(
+    function(d,...) {
+      k = k_05*2+1
+      samples = length(d)
+      # if (k >= samples) k = samples-samples%%2-1
+      if (k < samples-1) {
+        d_x_d_r = signal::sgolayfilt(d$tmp_x_continuous, p=2, n=k, m=1, ts=1.0/samples)
+        d_x_d_r = ifelse(d_x_d_r <= 0, 0.0001, d_x_d_r)
+        return(
+          tibble(
+            N = d$N,
+            tmp_x_continuous = d$tmp_x_continuous,
+            d_x_d_r = d_x_d_r # prevent negative gradient - d_x_d_r is an inverse cdf - always positive
+          ) %>% mutate(
+            p_x = 1.0/d_x_d_r,
+            I_x = -log(p_x)
+          ) %>% select( -d_x_d_r )
+        )
+      } else {
+        return(
+          tibble(
+            N = d$N,
+            tmp_x_continuous = d$tmp_x_continuous,
+            p_x = rep(NA,length(d$tmp_x_continuous)),
+            I_x = rep(NA,length(d$tmp_x_continuous))
+          )
+        )
+      }
+    }
+  )
+  
+  tmp2 = tmp2 %>% mutate(!!continuousVar := tmp_x_continuous)
+  
+  return(tmp2)
+}
+
+#' Helper function to calculate observed class counts of discrete variable X in grouped data in a tidy friendly manner. 
+#' Class counts are needed for certain corrections to the entropy and 
+#'
+#' @param df a dataframe containing 2 columns defining class of event X and class of event Y and either one row per event, 
+#' or a count of observations, for each class combination. 
+#' df may also be grouped and in which case the grouping is preserved in the result.
+#' @param groupVars the datatable column(s) defining the class of the observation quoted by vars(...)
+#' @param countVar the datatable column containing the observed frequency combination of event XY. If this is missing the row count will be used instead
+#' @return A mutated datatable with the count of possible values of X as C (repeated for every observation of X) and the corresponding maximum entropy of the source (max_H)
+#' @import dplyr
+#' @export
+classCountFromGroup = function(df, groupVars) {
+  grps = df %>% groups()
+  tmp = df %>% ungroup() %>% group_by(!!!grps) %>% groupMutate(
+    C = n_distinct(!!!groupVars),
+    max_H = log(C)
+  ) 
+  return(tmp)
 }
 
 
@@ -77,16 +179,16 @@ probabilitiesFromConfusionMatrix = function(df, tpVar, fpVar, fnVar, tnVar) {
   tnVar = ensym(tnVar)
   return(
     df %>% mutate(
-      total = !!tpVar+!!fpVar+!!fnVar+!!tnVar,
-      p_x1y1 = as.double(!!tpVar)/total,
-      p_x1y0 = as.double(!!fnVar)/total,
-      p_x0y1 = as.double(!!fpVar)/total,
-      p_x0y0 = as.double(!!tnVar)/total,
+      tmp_total = !!tpVar+!!fpVar+!!fnVar+!!tnVar,
+      p_x1y1 = as.double(!!tpVar)/tmp_total,
+      p_x1y0 = as.double(!!fnVar)/tmp_total,
+      p_x0y1 = as.double(!!fpVar)/tmp_total,
+      p_x0y0 = as.double(!!tnVar)/tmp_total,
       p_x1 = p_x1y1+px1y0,
       p_x0 = p_x0y1+px0y0,
       p_y1 = p_x1y1+px0y1,
       p_y0 = p_x1y0+px0y0
-    )
+    ) %>% select(-tmp_total)
   )
 }
 

@@ -46,7 +46,7 @@ mutinformation(dat[,1],dat[,2])
 The first step to a more dplyr friendly mutual information function is to calculate the probabilities of different outcomes. The probabilityFromGroups function counts outcomes defined by the arguments. It returns a complete confusion matrix for each combination of outcome observed. 
 
 ```{r}
-tidydat %>% probabilitiesFromGroups(Murder,Assault)
+tidydat %>% probabilitiesFromCooccurrence(vars(Murder),vars(Assault))
 ```
 
 Assuming the same discretised data we can calculate MIs for individual combinations using dplyr syntax. This is reiplemented in a way which allows it to be performed in SQL if
@@ -54,7 +54,7 @@ a dbplyr table is provided
 
 ```{r}
 
-tidydat %>% probabilitiesFromGroups(Murder,Assault) %>% calculateMultiClassMI() # should be the same as I2
+tidydat %>% probabilitiesFromCooccurrence(vars(Murder),vars(Assault)) %>% calculateMultiClassMI() # should be the same as I2
 ```
 
 However the more usual situation in tidy data is to not have a matrix as with the USArrests data but a longer format such as the following:
@@ -80,10 +80,10 @@ tidydat3 %>% head()
 Using this data format it is more natural to group the data by the variables and determine the probabilities is a dplyr friendly way. To prove this is correct we reformat it to the same as the infotheo package
 
 ```{r}
-t3 = tidydat3 %>% group_by(variable1,variable2) %>% probabilitiesFromGroups(level1,level2) %>% calculateMultiClassMI(adjust=FALSE)
+t3 = tidydat3 %>% group_by(variable1,variable2) %>% probabilitiesFromCooccurrence(vars(level1),vars(level2)) %>% calculateMultiClassMI(adjust=FALSE)
 t3 %>% pivot_wider(names_from=variable2, values_from=I) # should be the same as I
 
-t4 = tidydat3 %>% group_by(variable1,variable2) %>% probabilitiesFromGroups(level1,level2) %>% calculateMultiClassMI(adjust=TRUE)
+t4 = tidydat3 %>% group_by(variable1,variable2) %>% probabilitiesFromCooccurrence(vars(level1),vars(level2)) %>% calculateMultiClassMI(adjust=TRUE)
 t4 %>% pivot_wider(names_from=variable2, values_from=I) # should be the same as I
 ```
 

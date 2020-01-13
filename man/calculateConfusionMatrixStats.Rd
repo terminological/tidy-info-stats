@@ -10,10 +10,13 @@ calculateConfusionMatrixStats(df)
 \item{df}{a dataframe containing one observation per row & p_x1y1, p_x0y1, p_x1y0, and p_x0y0 columns (see probabilitiesFromConfusionMatrix)}
 }
 \value{
-the datatable with additional columns for true_pos_rate / true_neg_rate / etc...
+the datatable with additional columns for confusion matrix stats: true_pos_rate / true_neg_rate / etc...
 }
 \description{
 The purpose of this is to make it possible to calculate accuracy stats in a DPLYR table (including dbplyr). Typically
 this will come from some sort of threshold based classification task where the classification output
 is a probability and the prediction class is a binary outcome.
+}
+\details{
+see also fBeta score vectorised function
 }

@@ -126,5 +126,5 @@ This is possible with a random distribution selector which will randomly pick fr
 ```{r}
 cd3 = ConditionalDistribution$new()
 cd3$withRandomDistributions(3)
-cd3$plot(-10,10)
+cd3$plot(-5,5)
 ```

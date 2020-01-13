@@ -6,8 +6,8 @@
 \usage{
 calculateDiscreteDiscreteMI_Entropy(
   df,
-  groupXVar,
-  groupYVar,
+  groupXVars,
+  groupYVars,
   entropyMethod = "Grassberger",
   ...
 )
@@ -15,9 +15,9 @@ calculateDiscreteDiscreteMI_Entropy(
 \arguments{
 \item{df}{- may be grouped, in which case the grouping is interpreted as different types of discrete variable}
 
-\item{groupXVar}{- the column of the discrete value (X)}
+\item{groupXVars}{- the column of the discrete value (X) quoted by vars(...)}
 
-\item{groupYVar}{- the column of the discrete value (Y)}
+\item{groupYVars}{- the column of the discrete value (Y)}
 
 \item{entropyMethod}{- the method used to calculate the entropy (see ?tidyinfostats::calculateEntropy) - defaults to "Grassberger"}
 }

@@ -4,22 +4,14 @@
 \alias{calculateDiscreteDiscreteMI_Empirical}
 \title{calculate mutual information between a discrete value (X) and a discrete value (Y)}
 \usage{
-calculateDiscreteDiscreteMI_Empirical(
-  df,
-  groupXVar,
-  groupYVar,
-  adjust = TRUE,
-  ...
-)
+calculateDiscreteDiscreteMI_Empirical(df, groupXVars, groupYVars, ...)
 }
 \arguments{
 \item{df}{- may be grouped, in which case the grouping is interpreted as different types of discrete variable}
 
-\item{groupXVar}{- the column of the discrete value (X)}
+\item{groupXVars}{- the column of the discrete value (X) quoted by vars(...)}
 
-\item{groupYVar}{- the column of the discrete value (Y)}
-
-\item{adjust}{- Apply a miller-madow adjustement to the result (default: TRUE)}
+\item{groupYVars}{- the column of the discrete value (Y)}
 }
 \value{
 a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry

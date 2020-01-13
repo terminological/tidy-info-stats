@@ -6,18 +6,18 @@
 \usage{
 calculateDiscreteDiscreteMI(
   df,
-  groupXVar,
-  groupYVar,
-  method = "Empirical",
+  groupXVars,
+  groupYVars,
+  method = "Grassberger",
   ...
 )
 }
 \arguments{
 \item{df}{- may be grouped, in which case the value is interpreted as different types of continuous variable}
 
-\item{groupXVar}{- the column of the discrete value (X)}
+\item{groupXVars}{- the column(s) of the discrete value (X) quoted by vars(...)}
 
-\item{groupYVar}{- the column of the discrete value (Y)}
+\item{groupYVars}{- the column(s) of the discrete value (Y) quoted by vars(...)}
 
 \item{method}{- the method employed - valid options are "Empirical","MontgomerySmith","Compression","Histogram","Entropy","Grassberger"}
 

@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
 #devtools::install_github("cwida/duckdb/tools/rpkg", build = FALSE)
-library(tidyinfostats)
+#library(tidyinfostats)
 devtools::load_all("..")
 set.seed(101)
 ```
@@ -23,14 +23,14 @@ Suppose you have a database connection and you have some data loaded into it. He
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = ":memory:")
 
 hb = ConditionalDistribution$new()
-hb$withDistribution(0.75, LogNormalDistribution$new(mode=12,sd=2), "asymptomatic")
-hb$withDistribution(0.25, LogNormalDistribution$new(mode=8,sd=3), "tired")
-hb$withDistribution(0.25, LogNormalDistribution$new(mode=4,sd=5), "unwell")
+hb$withDistribution(0.75, LogNormalDistribution$new(mode=12,var=2), "asymptomatic")
+hb$withDistribution(0.25, LogNormalDistribution$new(mode=8,var=3), "tired")
+hb$withDistribution(0.25, LogNormalDistribution$new(mode=4,var=5), "unwell")
 
 k = ConditionalDistribution$new()
-k$withDistribution(0.125, LogNormalDistribution$new(mode=1,sd=0.5), "unwell")
-k$withDistribution(0.75, LogNormalDistribution$new(mode=2,sd=1), "asymptomatic")
-k$withDistribution(0.125, LogNormalDistribution$new(mode=8,sd=3), "tired")
+k$withDistribution(0.125, LogNormalDistribution$new(mode=1,var=0.5), "unwell")
+k$withDistribution(0.75, LogNormalDistribution$new(mode=2,var=1), "asymptomatic")
+k$withDistribution(0.125, LogNormalDistribution$new(mode=8,var=3), "tired")
 
 theoretical = tibble(
   measure = c("Mean","Variance","Mutual Information"),
@@ -50,19 +50,19 @@ For reference results as executed in R
 ```{r}
 # devtools::load_all("..")
 
-result = testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(outcome, value, method = "KWindow")
+result = testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KWindow")
 result
 ```
 
 Now executed on the dbplyr database:
 ```{r}
-lazyResult = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(outcome, value, method = "KWindow")
+lazyResult = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KWindow")
 lazyResult %>% show_query()
 
 lazyResult %>% collect()
 
 # DONT run this. The KNN method is not efficient in SQL
-# lazyResult2 = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(outcome, value, method = "KNN", useKWindow=FALSE)
+# lazyResult2 = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KNN", useKWindow=FALSE)
 # lazyResult2 %>% show_query()
 # lazyResult2
 ```
@@ -85,10 +85,10 @@ discretised %>% group_by(test,value_discrete) %>% summarise(count = n())
 ```{r}
 # devtools::load_all("..")
 
-testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(outcome, value, method = "DiscretiseByRank", bins=100)
+testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByRank", bins=100)
 
 
-lazyResult3 = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(outcome, value, method = "DiscretiseByRank", bins=100)
+lazyResult3 = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByRank", bins=100)
 #lazyResult3 %>% show_query()
 lazyResult3
 ```
@@ -96,11 +96,11 @@ lazyResult3
 ```{r}
 # devtools::load_all("..")
 
-#testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(outcome, value, method = "DiscretiseByValue", discreteMethod = "MontgomerySmith")
-testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(outcome, value, method = "DiscretiseByValue", discreteMethod = "Grassberger")
+#testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByValue", discreteMethod = "MontgomerySmith")
+testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByValue", discreteMethod = "Grassberger")
 
-#lazyResult4 = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(outcome, value, method = "DiscretiseByValue", discreteMethod = "MontgomerySmith")
-lazyResult4 = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(outcome, value, method = "DiscretiseByValue", discreteMethod = "Grassberger")
+#lazyResult4 = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByValue", discreteMethod = "MontgomerySmith")
+lazyResult4 = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByValue", discreteMethod = "Grassberger")
 
 
 lazyResult4
