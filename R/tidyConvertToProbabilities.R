@@ -74,7 +74,7 @@ probabilitiesFromDiscrete = function(df, groupVars, countVar=NULL) {
   grps = df %>% groups()
   
   # groupwise count creates an N and N_x  column based on groupVars, and countVar
-  df = df %>% groupwiseCount(groupVars, countVar) %>% mutate(
+  df = df %>% groupwiseCount(groupVars, countVar, summarise=TRUE) %>% mutate(
     p_x = N_x/N,
     I_x = -log(p_x) #I_x is self information
     # entropy of X as an empirical measure will be sum(p_x*I_x) - the average of self information
@@ -123,7 +123,7 @@ probabilitiesFromContinuous = function(df, continuousVar, k_05 = 10) {
       } else {
         return(
           tibble(
-            N = d$N,
+            N = d$N, # TODO
             tmp_x_continuous = d$tmp_x_continuous,
             p_x = rep(NA,length(d$tmp_x_continuous)),
             I_x = rep(NA,length(d$tmp_x_continuous))
@@ -146,16 +146,22 @@ probabilitiesFromContinuous = function(df, continuousVar, k_05 = 10) {
 #' df may also be grouped and in which case the grouping is preserved in the result.
 #' @param groupVars the datatable column(s) defining the class of the observation quoted by vars(...)
 #' @param countVar the datatable column containing the observed frequency combination of event XY. If this is missing the row count will be used instead
+#' @param summarise - return a mutated (FALSE) or summarised (TRUE) result of the df
 #' @return A mutated datatable with the count of possible values of X as C (repeated for every observation of X) and the corresponding maximum entropy of the source (max_H)
 #' @import dplyr
 #' @export
-classCountFromGroup = function(df, groupVars) {
+classCountFromGroup = function(df, groupVars, summarise=FALSE) {
   grps = df %>% groups()
   tmp = df %>% ungroup() %>% group_by(!!!grps) %>% groupMutate(
     C = n_distinct(!!!groupVars),
     max_H = log(C)
   ) 
-  return(tmp)
+  if (summarise) {
+    return(tmp)
+  } else {
+    joinList = df %>% joinList(groupVars)
+    return(df %>% left_join(tmp,by=joinList))
+  }
 }
 
 

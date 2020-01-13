@@ -24,21 +24,22 @@ groupMutate = function(df, ...) {
 #' @param df - a df which may be grouped
 #' @param groupVars - the grouping for which we want to create a label as a list of columns quoted by vars(...)
 #' @param outputVar - the name of the target column for relabelling
+#' @param summarise - return dataframe as-is with additional column (FALSE - the default) or return dataframe as group summary with only grouping info and output (TRUE)
 #' @return a dbplyr dataframe containing the grouped function
 #' @export
-labelGroup = function(df, groupVars, outputVar) {
+labelGroup = function(df, groupVars, outputVar, summarise=FALSE) {
   outputVar = ensym(outputVar)
   grps = df %>% groups()
-  if (length(grps)==0) {
-    joinList = c(as.vector(sapply(groupVars,as_label)))
-  } else {
-    joinList = c(sapply(grps,as.character), as.vector(sapply(groupVars,as_label)))
-  }
 
   tmp = df %>% select(!!!grps,!!!groupVars) %>% distinct() %>%
     group_by(!!!grps) %>% arrange(!!!groupVars) %>% mutate(!!outputVar := row_number()) 
-  
-  return(df %>% left_join(tmp,by=joinList))
+
+  if (summarise) {
+    return(tmp)
+  } else {
+    joinList = df %>% joinList(groupVars)
+    return(df %>% left_join(tmp,by=joinList))
+  }
   
 }
 
@@ -50,19 +51,26 @@ labelGroup = function(df, groupVars, outputVar) {
 #' @param outputVar - the name of the target column for relabelling
 #' @return the grouped dataframe containing the df grouping columns, the groupVars columns, and a groupwise count of both levels of grouping labelled N and N_x and the groupwise p_x.
 #' @export
-groupwiseCount = function(df, groupVars, countVar=NULL) {
+groupwiseCount = function(df, groupVars, countVar=NULL, summarise=FALSE) {
   countVar = tryCatch(ensym(countVar),error = function(e) NULL)
   grps = df %>% groups()
   
   if (identical(countVar,NULL)) {
     # there is no count column.
-    df = df %>% group_by(!!!grps, !!!groupVars) %>% summarise(N_x = n())
+    tmp = df %>% group_by(!!!grps, !!!groupVars) %>% summarise(N_x = n())
   } else {
     # there is a count column.
-    df = df %>% group_by(!!!grps, !!!groupVars) %>% summarise(N_x = sum(!!countVar))
+    tmp = df %>% group_by(!!!grps, !!!groupVars) %>% summarise(N_x = sum(!!countVar))
+  }
+  tmp = tmp %>% ungroup() %>% group_by(!!!grps) %>% groupMutate(N = sum(N_x))
+  
+  if (summarise) {
+    return(tmp)
+  } else {
+    joinList = df %>% joinList(groupVars)
+    return(df %>% left_join(tmp,by=joinList))
   }
   
-  df = df %>% ungroup() %>% group_by(!!!grps) %>% groupMutate(N = sum(N_x))
   return(df)
 }
 
@@ -74,12 +82,12 @@ groupwiseCount = function(df, groupVars, countVar=NULL) {
 collectDf = function(df, collect) {
   if ("tbl_sql" %in% class(df)) {
     if (collect) {
-      df %>% collect()
+      return(df %>% collect())
     } else {
       stop("This implementation does not support dbplyr data frames")
     }
   }
-  df
+  return(df)
 }
 
 #' a set of the first 50 digamma values

@@ -47,7 +47,7 @@ calculateEntropy_MontgomerySmith = function(df, groupVars, orderingVar = NULL, .
     tmp = df %>% mutate(seq = 1)
   } else {
     orderingVar = ensym(orderingVar)
-    tmp = df %>% rename(seq = !!orderingVar)
+    tmp = df %>% mutate(seq = !!orderingVar)
   }
   
   # define rank and top level counts
