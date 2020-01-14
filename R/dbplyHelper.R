@@ -13,9 +13,9 @@ groupMutate = function(df, ...) {
   }
   joinList = c(grpsList, "tmp_join")
   
-  tmp_df <- df %>% group_by(!!!grps) %>% summarize(...) %>% ungroup() %>% mutate(tmp_join=1)
+  tmp_df <- df %>% group_by(!!!grps) %>% summarize(...) %>% ungroup() %>% mutate(tmp_join=1L)
   
-  return(df %>% mutate(tmp_join=1) %>% left_join(tmp_df, by=joinList) %>% select(-tmp_join))
+  return(df %>% mutate(tmp_join=1L) %>% left_join(tmp_df, by=joinList) %>% select(-tmp_join))
 }
 
 
@@ -55,23 +55,26 @@ groupwiseCount = function(df, groupVars, countVar=NULL, summarise=FALSE) {
   countVar = tryCatch(ensym(countVar),error = function(e) NULL)
   grps = df %>% groups()
   
-  if (identical(countVar,NULL)) {
-    # there is no count column.
-    tmp = df %>% group_by(!!!grps, !!!groupVars) %>% summarise(N_x = n())
-  } else {
-    # there is a count column.
-    tmp = df %>% group_by(!!!grps, !!!groupVars) %>% summarise(N_x = sum(!!countVar))
-  }
-  tmp = tmp %>% ungroup() %>% group_by(!!!grps) %>% groupMutate(N = sum(N_x))
-  
   if (summarise) {
-    return(tmp)
+    if (identical(countVar,NULL)) {
+      # group count + mutate surm
+      return(df %>% group_by(!!!grps, !!!groupVars) %>% summarise(N_x = n()) %>% ungroup() %>% group_by(!!!grps) %>% mutate(N = sum(N_x)))
+    } else {
+      # group sum + mutate surm
+      return(df %>% group_by(!!!grps, !!!groupVars) %>% summarise(N_x = sum(!!countVar)) %>% ungroup() %>% group_by(!!!grps) %>% mutate(N = sum(N_x)))
+    }
   } else {
-    joinList = df %>% joinList(groupVars)
-    return(df %>% left_join(tmp,by=joinList))
+    if (identical(countVar,NULL)) {
+      # mutate count + mutate count
+      return(df %>% group_by(!!!grps, !!!groupVars) %>% mutate(N_x = n()) %>% ungroup() %>% group_by(!!!grps) %>% mutate(N = n()))
+    } else {
+      # group count + mutate sum + join to original
+      joinList = df %>% joinList(groupVars)
+      tmp = df %>% group_by(!!!grps, !!!groupVars) %>% summarise(N_x = sum(!!countVar)) %>% ungroup() %>% group_by(!!!grps) %>% mutate(N = sum(N_x))
+      return(df %>% left_join(tmp,by=joinList))
+    }
   }
   
-  return(df)
 }
 
 

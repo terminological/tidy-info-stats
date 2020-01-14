@@ -63,25 +63,24 @@ calculateDiscreteDiscreteMI_Empirical = function(df, groupXVars, groupYVars, ...
 #' @export
 calculateDiscreteDiscreteMI_Entropy = function(df, groupXVars, groupYVars, entropyMethod="Grassberger", ...) {
   grps = df %>% groups()
-  if (length(grps)==0) {
-    joinList = c("join")
-  } else {
-    joinList = c(sapply(grps,as.character), "join")
-  }
+  joinList = df %>% joinList(defaultJoin = "join")
   # list of join variables for join by value
-  groupJoinList = c(joinList,as.vector(sapply(groupXVars,as_label)))
+  groupJoinList = df %>% joinList(groupXVars)
   
-  Hy = df %>% group_by(!!!grps) %>% calculateEntropy(groupYVars, method = entropyMethod, ...) %>% rename(Hy = H, Hy_sd = H_sd) %>% mutate(join = 1)
-  Hygivenx_tmp = df %>% group_by(!!!grps, !!!groupXVars) %>% calculateEntropy(groupYVars, method = entropyMethod, ...) %>% mutate(join = 1)
-  Px = df %>% 
-    group_by(!!!grps) %>% mutate(N=n()) %>%
-    group_by(!!!grps,!!!groupXVars,N) %>% summarise(NX=n()) %>% mutate(Px=as.double(NX)/N, join=1)
+  Hy = df %>% group_by(!!!grps) %>% calculateEntropy(groupYVars, method = entropyMethod, ...) %>% rename(Hy = I, Hy_sd = I_sd) %>% mutate(join = 1)
+  
+  Hygivenx_tmp = df %>% group_by(!!!grps, !!!groupXVars) %>% calculateEntropy(groupYVars, method = entropyMethod, ...) %>% rename(Hygivenx = I, Hygivenx_sd = I_sd) %>% mutate(join = 1)
+  
+  Px = df %>% group_by(!!!grps) %>% groupwiseCount(groupXVars, summarise = TRUE) %>% mutate(p_x=as.double(N_x)/N, join=1)
   
   suppressWarnings({
-  Hygivenx = Hygivenx_tmp %>% left_join(Px, by=groupJoinList) %>% group_by(!!!grps) %>% summarise(
-    Hygivenx = sum(H*Px,na.rm = TRUE), 
-    Hygivenx_sd = max(H_sd*Px,na.rm = TRUE)) %>% mutate(join = 1)
+    Hygivenx = Hygivenx_tmp %>% left_join(Px, by=groupJoinList) %>% group_by(!!!grps) %>% summarise(
+      Hygivenx = sum(Hygivenx*p_x,na.rm = TRUE), 
+      Hygivenx_sd = max(Hygivenx_sd*p_x,na.rm = TRUE)
+    ) %>% mutate(join = 1) # sometimes max term has no non NA values. In which case this is NAl, which is ok but generates a warning
   })
+  
+  #TODO: refactor this to get a pointwise MI based on Hy/Px - H
   
   tmp2 = Hy %>% left_join(Hygivenx, by=joinList) %>% mutate(
     I = Hy-Hygivenx, 

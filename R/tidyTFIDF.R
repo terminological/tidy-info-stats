@@ -21,7 +21,7 @@ calculateIdf = function(groupedDf, conceptIdVar, countVar=NULL,  totalDocuments=
 	if (identical(countVar,NULL)) {
 		tmp = groupedDf %>% group_by(!!!grps, !!conceptIdVar) %>% summarise(count = n())
 	} else {
-		tmp = groupedDf %>% group_by(!!!grps, !!conceptIdVar) %>% summarise(count = sum(!!countVar))
+		tmp = groupedDf %>% group_by(!!!grps, !!conceptIdVar) %>% summarise(count = sum(!!countVar, na.rm=TRUE))
 	}
 	
 	if (is.na(totalDocuments)) {
@@ -104,7 +104,7 @@ calculateTfidf = function(groupedDf, conceptIdVar, countVar=NULL, idfDf=NULL, k1
 		if (identical(idfDf,NULL)) {
 			idfDf = calculateIdf(groupedDf, !!conceptIdVar, !!countVar, totalDocuments=totalDocuments)
 		}
-		groupedDf = groupedDf %>% group_by(!!!grps, !!conceptIdVar) %>% summarise(count = sum(!!countVar))
+		groupedDf = groupedDf %>% group_by(!!!grps, !!conceptIdVar) %>% summarise(count = sum(!!countVar, na.rm=TRUE))
 	}
 	
 	# in groupedDf we are counting cooncepts / terms

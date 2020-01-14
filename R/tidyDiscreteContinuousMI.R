@@ -305,9 +305,9 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousPointwiseMI_KWindow = function(df, discreteVars, continuousVar, k_05=4, ...) { 
+calculateDiscreteContinuousPointwiseMI_KWindow = function(df, discreteVars, continuousVar, k_05=4L, ...) { 
   k_05 = as.integer(k_05)
-  if (k_05<2) k_05=2
+  if (k_05<2L) k_05=2L
   grps = df %>% groups()
   continuousVar = ensym(continuousVar)
   joinList = df %>% joinList(discreteVars)
@@ -321,7 +321,7 @@ calculateDiscreteContinuousPointwiseMI_KWindow = function(df, discreteVars, cont
   
   # the knn approach without using neighbours - i.e. a k wide sliding window
   tmp4 = tmp %>% group_by(!!!grps) %>% arrange(y_continuous) %>% mutate(rank = row_number())
-  tmp4 = tmp4 %>% group_by(!!!grps,!!!discreteVars) %>% arrange(y_continuous) %>% mutate(
+  tmp4 = tmp4  %>% group_by(!!!grps,!!!discreteVars) %>% arrange(y_continuous) %>% mutate(
     
     # correct k for tails of distributions exclusive
     # kRank = row_number(),
@@ -334,8 +334,8 @@ calculateDiscreteContinuousPointwiseMI_KWindow = function(df, discreteVars, cont
     # k = lead(kRank,n=k_05,default=max(N_x))-lag(kRank,n=k_05,default=1)
     
     # dont correct k & exclude tails
-    k = k_05*2,
-    m_i = ifelse(N_x < k+1, NA, lead(rank,n=k_05)-lag(rank,n=k_05))
+    k = local(k_05)*2L,
+    m_i = ifelse(N_x < local(k_05)*2L+1L, NA, lead(rank,n=local(k_05))-lag(rank,n=local(k_05)))
     
     # average m_i over 3 window sizes
     # k = k_05*2,
@@ -344,7 +344,9 @@ calculateDiscreteContinuousPointwiseMI_KWindow = function(df, discreteVars, cont
     #				lead(rank,n=local(k_05+1L))-lag(rank,n=local(k_05+1L))+
     #				lead(rank,n=local(k_05-1L))-lag(rank,n=local(k_05-1L))
     #				)/3*2)/2
-  )  %>% compute()
+  )  
+  
+  tmp4 = tmp4 %>% compute()
   
   tmp4 = tmp4 %>% 
     calculateDigamma(k,digammak) %>% 
@@ -356,10 +358,11 @@ calculateDiscreteContinuousPointwiseMI_KWindow = function(df, discreteVars, cont
     )
   
   tmp5 = tmp4 %>% filter(!is.na(I_i)) %>% group_by(!!!grps,!!!discreteVars) %>% summarize(
-    p_x = max(N_x/N),
+    p_x = max(as.double(N_x)/N),
     I_given_x = mean(I_i,na.rm = TRUE),
     I_given_x_sd = sd(I_i,na.rm = TRUE)/sqrt(max(N,na.rm=TRUE))
   ) %>% mutate(method = "KWindow")
+  
   
   return(tmp5 %>% group_by(!!!grps))
 }
@@ -447,7 +450,7 @@ calculateDiscreteContinuousMI_DiscretiseByValue = function(df, discreteVars, con
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousMI_KNN = function(df, discreteVars, continuousVar, k_05=4, useKWindow = TRUE,...) {
+calculateDiscreteContinuousMI_KNN = function(df, discreteVars, continuousVar, k_05=4L, useKWindow = TRUE,...) {
   grps = df %>% groups()
 
   maxN = df %>% group_by(!!!grps) %>% summarise(N = n()) %>% summarise(maxN = max(N, na.rm=TRUE)) %>% pull(maxN)
@@ -485,7 +488,7 @@ calculateDiscreteContinuousMI_KNN = function(df, discreteVars, continuousVar, k_
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousPointwiseMI_KNN = function(df, discreteVars, continuousVar, k_05=4, useKWindow = TRUE,...) {
+calculateDiscreteContinuousPointwiseMI_KNN = function(df, discreteVars, continuousVar, k_05=4L, useKWindow = TRUE,...) {
   grps = df %>% groups()
   maxN = df %>% group_by(!!!grps) %>% summarise(N = n()) %>% summarise(maxN = max(N, na.rm=TRUE)) %>% pull(maxN)
   if(maxN > 500 && useKWindow) {
@@ -493,7 +496,7 @@ calculateDiscreteContinuousPointwiseMI_KNN = function(df, discreteVars, continuo
     return(calculateDiscreteContinuousPointwiseMI_KWindow(df, discreteVars, {{continuousVar}}, k_05))
   }
   k_05 = as.integer(k_05)
-  if (k_05<2) k_05=2
+  if (k_05<2L) k_05=2L
   continuousVar = ensym(continuousVar)
   
   joinList = df %>% joinList(discreteVars)
@@ -509,8 +512,8 @@ calculateDiscreteContinuousPointwiseMI_KNN = function(df, discreteVars, continuo
     group_by(!!!grps,!!!discreteVars) %>% arrange(y_continuous) %>% mutate(groupRank = row_number()) %>% compute()
   
   tmp = tmp %>% group_by(!!!grps,!!!discreteVars) %>% arrange(y_continuous) %>% mutate(
-    rankMax = lead(rank,n=k_05*2),
-    rankMin = lag(rank,n=k_05*2,1)
+    rankMax = lead(rank,n=k_05*2L),
+    rankMin = lag(rank,n=k_05*2L,1L)
   ) %>% mutate(rankMax = ifelse(is.na(rankMax),N,rankMax))
   
   # list of join variables for join by value
@@ -521,7 +524,7 @@ calculateDiscreteContinuousPointwiseMI_KNN = function(df, discreteVars, continuo
     y_continuous_knn = y_continuous,
     x_discrete_knn = x_discrete,
     rank_knn = rank) %>%
-    select(!!!grps,x_discrete_knn,y_continuous_knn,rank_knn) %>% mutate(join=1) %>% compute()
+    select(!!!grps,x_discrete_knn,y_continuous_knn,rank_knn) %>% mutate(join=1L) %>% compute()
   
   # TODO: this is unuseably inefficient
   
@@ -532,9 +535,9 @@ calculateDiscreteContinuousPointwiseMI_KNN = function(df, discreteVars, continuo
     arrange(y_diff) %>% 
     mutate(sameGroup=ifelse(x_discrete_knn==x_discrete,1L,0L)) %>% #, differentGroup=ifelse(x_discrete_knn==x_discrete,0,1)) %>%
     mutate(kDist = cumsum(sameGroup), m_i = row_number()) %>%
-    filter(kDist == local(k_05*2L+1) & sameGroup==1) %>% 
+    filter(kDist == local(k_05*2L+1L) & sameGroup==1L) %>% 
     mutate(
-      k = ifelse(N < k_05*2+1, NA, kDist-1), 
+      k = ifelse(N < k_05*2L+1L, NA, kDist-1L), 
       m_i = m_i-1
     ) %>% compute() # this is the strange definintion of knn in the original paper
   
@@ -548,7 +551,7 @@ calculateDiscreteContinuousPointwiseMI_KNN = function(df, discreteVars, continuo
     )
   
   tmp5 = tmp4 %>% filter(!is.na(I_i)) %>% group_by(!!!grps,!!!discreteVars) %>% summarize(
-    p_x = max(N_x/N),
+    p_x = max(as.double(N_x)/N),
     I_given_x = mean(I_i,na.rm = TRUE),
     I_given_x_sd = sd(I_i,na.rm = TRUE)/sqrt(max(N,na.rm=TRUE))
   ) %>% mutate(method = "KNN")
