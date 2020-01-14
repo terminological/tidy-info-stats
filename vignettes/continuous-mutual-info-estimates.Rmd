@@ -130,6 +130,7 @@ k = c(k$theoreticalMean(),k$theoreticalVariance(),k$theoreticalMI()))
 We can also generate test data by sampling from the underlying distributions
 
 ```{r}
+devtools::load_all("..")
 set.seed(101)
 testData = k$sample(500) %>% mutate(test="k") %>% bind_rows(
   hb$sample(1000) %>% mutate(test="hb")) %>% rename(outcome=y, value=x)
@@ -138,7 +139,11 @@ testData = testData[sample(nrow(testData)),]
 
 ggplot(testData, aes(fill=outcome, x=value))+geom_histogram(position="dodge", bins=50)+facet_grid(cols=vars(test))
 
-tmp = testData %>% group_by(test,outcome) %>% probabilitiesFromContinuous(value)
+tmp = testData %>% group_by(test,outcome) %>% probabilitiesFromContinuous_Kernel(value)
+
+ggplot(tmp, aes(x=value, colour=outcome))+geom_line(aes(y=p_x))+facet_wrap(vars(test))
+
+# ggplot(tmp, aes(x=value, colour=outcome,fill=outcome))+stat_density(alpha=0.2,position="dodge")+facet_wrap(vars(test))
 ```
 
 And use this sample to estimate the MI using a range of methods.
@@ -155,6 +160,7 @@ options(warn=1)
 results = NULL
 results = results %>% rbind(testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KWindow"))
 results = results %>% rbind(testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "SGolay"))
+results = results %>% rbind(testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Kernel"))
 results = results %>% rbind(testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByRank"))
 results = results %>% rbind(testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByValue", discreteMethod="Entropy", entropyMethod="InfoTheo"))
 results = results %>% rbind(testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByValue", discreteMethod="Histogram"))
@@ -175,5 +181,6 @@ results %>% group_by(test) %>% standardPrintOutput::mergeCells()
 ```{r}
 devtools::load_all("..")
 testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousPointwiseMI(vars(outcome), value, method = "KWindow")
+testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousPointwiseMI(vars(outcome), value, method = "Kernel")
 
 ```

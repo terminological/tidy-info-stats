@@ -13,6 +13,7 @@ calculateDiscreteContinuousMI = function(df, discreteVars, continuousVar, method
     KWindow = calculateDiscreteContinuousMI_KWindow(df, discreteVars, {{continuousVar}}, ...),
     KNN = calculateDiscreteContinuousMI_KNN(df, discreteVars, {{continuousVar}}, ...),
     SGolay = calculateDiscreteContinuousMI_SGolay(df, discreteVars, {{continuousVar}}, ...),
+    Kernel = calculateDiscreteContinuousMI_Kernel(df, discreteVars, {{continuousVar}}, ...),
     DiscretiseByRank = calculateDiscreteContinuousMI_DiscretiseByRank(df, discreteVars, {{continuousVar}}, ...),
     DiscretiseByValue = calculateDiscreteContinuousMI_DiscretiseByValue(df, discreteVars, {{continuousVar}}, ...),
     Compression = calculateDiscreteContinuousMI_Compression(df, discreteVars, {{continuousVar}}, ...),
@@ -36,6 +37,7 @@ calculateDiscreteContinuousPointwiseMI = function(df, discreteVars, continuousVa
   switch (method,
           KWindow = calculateDiscreteContinuousPointwiseMI_KWindow(df, discreteVars, {{continuousVar}}, ...),
           KNN = calculateDiscreteContinuousPointwiseMI_KNN(df, discreteVars, {{continuousVar}}, ...),
+          Kernel = calculateDiscreteContinuousPointwiseMI_Kernel(df, discreteVars, {{continuousVar}}, ...),
           # SGolay = calculateDiscreteContinuousMI_SGolay(df, discreteVars, {{continuousVar}}, ...),
           # DiscretiseByRank = calculateDiscreteContinuousMI_DiscretiseByRank(df, discreteVars, {{continuousVar}}, ...),
           # DiscretiseByValue = calculateDiscreteContinuousMI_DiscretiseByValue(df, discreteVars, {{continuousVar}}, ...),
@@ -45,6 +47,82 @@ calculateDiscreteContinuousPointwiseMI = function(df, discreteVars, continuousVa
   )
 }
 
+#' calculate mutual information between a categorical value (X) and a continuous value (Y) using a kernel density estimator of PDF
+#' 
+#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
+#' @param continuousVar - the column of the continuous value (Y)
+#' @param collect - if TRUE will collect dbplyr tables before processing, otherwise (the default) will fail on dbplyr tables
+#' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @import dplyr
+#' @export
+calculateDiscreteContinuousMI_Kernel = function(df, discreteVars, continuousVar, collect=FALSE, ...) { 
+  grps = df %>% groups()
+  
+  tmp5 = calculateDiscreteContinuousPointwiseMI_Kernel(df, discreteVars, {{continuousVar}}, collect, ...)
+  
+  tmp6 = tmp5 %>% group_by(!!!grps) %>% summarise(
+    I = sum(p_x * I_given_x),
+    I_sd = sum(p_x * I_given_x_sd),
+    method = "Kernel"
+  )
+  
+  return(tmp6)
+}
+
+#' calculate mutual information between a categorical value (X) and a continuous value (Y)
+#' 
+#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
+#' @param continuousVar - the column of the continuous value (Y)
+#' @param k_05 - the half window width of the SG filter that smooths the data. This is dependent on data but typically not less that 10.
+#' @param collect - if TRUE will collect dbplyr tables before processing, otherwise (the default) will fail on dbplyr tables
+#' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @import dplyr
+#' @export
+calculateDiscreteContinuousPointwiseMI_Kernel = function(df, discreteVars, continuousVar, collect=FALSE, ...) {
+  df = collectDf(df,collect)
+  grps = df %>% groups()
+  continuousVar = ensym(continuousVar)
+  
+  tmp = df %>% 
+    mutate(y_continuous=!!continuousVar) %>%
+    group_by(!!!grps) %>%
+    mutate(y_min = min(y_continuous),y_max = max(y_continuous))
+  
+  tmp2 = tmp %>%  
+    group_by(!!!grps,!!!discreteVars) %>% 
+    probabilitiesFromContinuous_Kernel(y_continuous,y_min,y_max) %>%
+    rename(N_x = N, p_y_given_x=p_x, I_y_given_x = I_x)
+  
+  tmp3 = tmp %>%
+    group_by(!!!grps) %>%
+    probabilitiesFromContinuous_Kernel(y_continuous,y_min,y_max) %>%
+    rename(N = N, p_y = p_x, I_y = I_x)
+  
+  joinList = tmp %>% joinList(defaultJoin = "y_continuous")
+    
+  tmp4 = tmp2 %>% 
+    inner_join(tmp3, by=joinList) %>% 
+    mutate(
+      p_x = as.double(N_x)/N,
+      pmi_xy = p_x*p_y_given_x*log(p_y_given_x/p_y)
+    )
+  
+  tmp5 = tmp4 %>% group_by(!!!grps,!!!discreteVars) %>% arrange(y_continuous) %>% mutate(
+      # integrate over dy ( well does the trapeziod part of the integration
+      # TODO: this integegration could be improved. lead(pmi_xy,default = 0)
+      d_I_d_xy = (pmi_xy+lag(pmi_xy,1,default=0))*as.double(y_continuous-lag(y_continuous))/2
+    ) %>% group_by(!!!grps,!!!discreteVars) %>% summarise (
+      p_x = max(p_x),
+      I_given_x = sum(d_I_d_xy,na.rm=TRUE)/p_x, # this does the sum over x and computes the integral over y at the same time.
+      I_given_x_sd = NA,
+      method = "Kernel"
+    )
+  
+  return(tmp5)
+    
+}
 
 #' calculate mutual information between a categorical value (X) and a continuous value (Y)
 #' 
@@ -67,6 +145,8 @@ calculateDiscreteContinuousMI_SGolay = function(df, discreteVars, continuousVar,
   # different types of Y (grps) which should be preserved and the discrete 
   # NX has group counts (N) and subgroup counts (N_x).
   tmp = df %>% groupwiseCount(discreteVars) %>% labelGroup(discreteVars, x_discrete) %>% mutate(y_continuous=!!continuousVar)
+  
+  
   
   # if (min(groupSize$N_x) < k_05*2+1) {
   #   return(df %>% group_by(!!!grps) %>% summarise(I = NA))
