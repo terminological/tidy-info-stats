@@ -4,7 +4,7 @@
 \alias{groupwiseCount}
 \title{A summary function to return a grouped df containing counts (N, N_x)}
 \usage{
-groupwiseCount(df, groupVars, countVar = NULL)
+groupwiseCount(df, groupVars, countVar = NULL, summarise = FALSE)
 }
 \arguments{
 \item{df}{- a df which may be grouped}

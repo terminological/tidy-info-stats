@@ -5,7 +5,7 @@
 \title{Helper function to calculate observed class counts of discrete variable X in grouped data in a tidy friendly manner. 
 Class counts are needed for certain corrections to the entropy and}
 \usage{
-classCountFromGroup(df, groupVars)
+classCountFromGroup(df, groupVars, summarise = FALSE)
 }
 \arguments{
 \item{df}{a dataframe containing 2 columns defining class of event X and class of event Y and either one row per event, 
@@ -13,6 +13,8 @@ or a count of observations, for each class combination.
 df may also be grouped and in which case the grouping is preserved in the result.}
 
 \item{groupVars}{the datatable column(s) defining the class of the observation quoted by vars(...)}
+
+\item{summarise}{- return a mutated (FALSE) or summarised (TRUE) result of the df}
 
 \item{countVar}{the datatable column containing the observed frequency combination of event XY. If this is missing the row count will be used instead}
 }
