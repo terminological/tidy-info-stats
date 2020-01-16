@@ -68,7 +68,8 @@ calculateEntropy_MontgomerySmith = function(df, groupVars, orderingVar = NULL, .
     #k2 = lead(rank,2,NA)-rank, would need digamma calc & average
     #k3 = lead(rank,3,NA)-rank,
     NX = n()
-  ) #%>% filter(!is.na(k))
+  ) %>% mutate(k = ifelse(is.na(k), NX-rank+1, k))
+  # if k is not known assume that it is the next one. This "fills in" unknown values
   
   # digamma(n) = Harmonic(n-1)-lambda
   # Entropy estimated by Harmonic(n-1) = digamma(n)+lambda

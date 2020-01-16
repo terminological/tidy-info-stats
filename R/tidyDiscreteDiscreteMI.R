@@ -84,6 +84,7 @@ calculateDiscreteDiscreteMI_Entropy = function(df, groupXVars, groupYVars, entro
   
   tmp2 = Hy %>% left_join(Hygivenx, by=joinList) %>% mutate(
     I = Hy-Hygivenx, 
+    # TODO: can we calculate Hx Hy and Hxy from all this?
     I_sd = Hy_sd+Hygivenx_sd,
     method =  paste0("Entropy - ",entropyMethod)
     ) %>% select(!!!grps, I, I_sd, method)

@@ -33,11 +33,11 @@ calculateDiscreteContinuousMI = function(df, discreteVars, continuousVar, method
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousPointwiseMI = function(df, discreteVars, continuousVar, method="KWindow", ...) {
+calculateDiscreteContinuousConditionalMI = function(df, discreteVars, continuousVar, method="KWindow", ...) {
   switch (method,
-          KWindow = calculateDiscreteContinuousPointwiseMI_KWindow(df, discreteVars, {{continuousVar}}, ...),
-          KNN = calculateDiscreteContinuousPointwiseMI_KNN(df, discreteVars, {{continuousVar}}, ...),
-          Kernel = calculateDiscreteContinuousPointwiseMI_Kernel(df, discreteVars, {{continuousVar}}, ...),
+          KWindow = calculateDiscreteContinuousConditionalMI_KWindow(df, discreteVars, {{continuousVar}}, ...),
+          KNN = calculateDiscreteContinuousConditionalMI_KNN(df, discreteVars, {{continuousVar}}, ...),
+          Kernel = calculateDiscreteContinuousConditionalMI_Kernel(df, discreteVars, {{continuousVar}}, ...),
           # SGolay = calculateDiscreteContinuousMI_SGolay(df, discreteVars, {{continuousVar}}, ...),
           # DiscretiseByRank = calculateDiscreteContinuousMI_DiscretiseByRank(df, discreteVars, {{continuousVar}}, ...),
           # DiscretiseByValue = calculateDiscreteContinuousMI_DiscretiseByValue(df, discreteVars, {{continuousVar}}, ...),
@@ -70,7 +70,7 @@ calculateDiscreteContinuousMI_Kernel = function(df, discreteVars, continuousVar,
   return(tmp6)
 }
 
-#' calculate mutual information between a categorical value (X) and a continuous value (Y)
+#' calculate pointwise mutual information between a categorical value (X) and a continuous value (Y). I.e. the self information of X conditioned on each of the possible values for X
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
@@ -80,7 +80,7 @@ calculateDiscreteContinuousMI_Kernel = function(df, discreteVars, continuousVar,
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousPointwiseMI_Kernel = function(df, discreteVars, continuousVar, collect=FALSE, ...) {
+calculateDiscreteContinuousConditionalMI_Kernel = function(df, discreteVars, continuousVar, collect=FALSE, ...) {
   df = collectDf(df,collect)
   grps = df %>% groups()
   continuousVar = ensym(continuousVar)
@@ -265,6 +265,7 @@ calculateDiscreteContinuousMI_SGolay = function(df, discreteVars, continuousVar,
 #' calculate mutual information between a categorical value (X) and a continuous value (Y) using a sliding window and local entropy measure
 #' 
 #' This is based on the technique described here:
+#' 
 #' B. C. Ross, “Mutual information between discrete and continuous data sets,” PLoS One, vol. 9, no. 2, p. e87357, Feb. 2014 [Online]. Available: http://dx_doi.org/10.1371/journal.pone.0087357
 #' but with the important simplification of using the sliding window K elements wide rather than the k nearest neighbours. This is empirically shown to have little difference on larger datasets
 #' and makes this algorithm simple to implement in dbplyr tables.
@@ -279,7 +280,7 @@ calculateDiscreteContinuousMI_SGolay = function(df, discreteVars, continuousVar,
 calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar, k_05=4, ...) { 
   grps = df %>% groups()
   
-  tmp5 = calculateDiscreteContinuousPointwiseMI_KWindow(df, discreteVars, {{continuousVar}}, k_05, ...)
+  tmp5 = calculateDiscreteContinuousConditionalMI_KWindow(df, discreteVars, {{continuousVar}}, k_05, ...)
   
   tmp6 = tmp5 %>% group_by(!!!grps) %>% summarise(
     I = sum(p_x * I_given_x),
@@ -291,7 +292,8 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar
 }
 
 
-#' calculate mutual information between a categorical value (X) and a continuous value (Y) using a sliding window and local entropy measure
+#' calculate pointwise mutual information between a categorical value (X) and a continuous value (Y). I.e. the self information of X conditioned on each of the possible values for X
+#' using a sliding window and local entropy measure
 #' 
 #' This is based on the technique described here:
 #' B. C. Ross, “Mutual information between discrete and continuous data sets,” PLoS One, vol. 9, no. 2, p. e87357, Feb. 2014 [Online]. Available: http://dx_doi.org/10.1371/journal.pone.0087357
@@ -305,7 +307,7 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousPointwiseMI_KWindow = function(df, discreteVars, continuousVar, k_05=4L, ...) { 
+calculateDiscreteContinuousConditionalMI_KWindow = function(df, discreteVars, continuousVar, k_05=4L, ...) { 
   k_05 = as.integer(k_05)
   if (k_05<2L) k_05=2L
   grps = df %>% groups()
