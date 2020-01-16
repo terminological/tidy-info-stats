@@ -348,7 +348,14 @@ calculateDiscreteContinuousConditionalMI_KWindow = function(df, discreteVars, co
     #				)/3*2)/2
   )  
   
-  tmp4 = tmp4 %>% compute()
+  # there are situations where this estimate can go negative - its to do with the estimation error in small sample sizez
+  # and the fact that in the window method the sliding is potentially centred around different points
+  tmp4 = tmp4 %>% mutate(m_i = ifelse(m_i > k,NA,m_i)) %>% compute()
+  
+  # TODO: what happens when there are not enough points in one class? As is we seem to get conditional estimate based on one class
+  # but not the other. In the extreme case where there are no points in the minority class we get a degnerate behaviour and
+  # an overall mutual information of 0 (which may be technically correct)
+  
   
   tmp4 = tmp4 %>% 
     calculateDigamma(k,digammak) %>% 

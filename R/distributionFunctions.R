@@ -153,6 +153,11 @@ NormalDistribution = R6::R6Class("NormalDistribution", inherit=Distribution, pub
 				#' @return a string
 				label = function() {
 					return(paste0("Norm: \U003BC=",self$twoDp(self$mu),"; \u03C3=",self$twoDp(self$sigma)))
+				},
+				#' @description calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+				#' @return a value
+				theoreticalEntropy = function() {
+				  log(self$sigma*sqrt(2*pi*exp(1)))
 				}
 		))
 
@@ -187,6 +192,11 @@ LogNormalDistribution = R6::R6Class("LogNormalDistribution", inherit=Distributio
 				#' @return a string
 				label = function() {
 					return(paste0("LogNorm: \U003BC=",self$twoDp(self$mu),"; \u03C3=",self$twoDp(self$sigma)))
+				},
+				#' @description calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+				#' @return a value
+				theoreticalEntropy = function() {
+				  self$mu+0.5*log(2*pi*exp(1)*self$sigma^2)
 				}
 		))
 
@@ -197,16 +207,27 @@ LogNormalDistribution = R6::R6Class("LogNormalDistribution", inherit=Distributio
 #' @import dplyr
 #' @export
 UniformDistribution = R6::R6Class("UniformDistribution", inherit=Distribution, public=list(
+        #' @field min the min
+        min=NULL,
+        #' @field max the max
+        max=NULL,
 				#' @description Uniform distribution
 				#' @param min the min value of the uniform distribution
 				#' @param max the max value of the uniform distribution
 				initialize = function(min=runif(1,-3,3),max=min+runif(1,0.5,6)) {
+				  self$min = min
+				  self$max = max
 					super$initialize(density=dunif,quantile=qunif,min=min,max=max)
 				},
 				
 				#' @description get a label for this distribution
 				label = function() {
 				  return(paste0("Unif: ",paste(paste0(names(self$dots),"=",self$twoDp(self$dots)),collapse="; ")))
+				},
+				#' @description calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+				#' @return a value
+				theoreticalEntropy = function() {
+				  log(self$max-self$min)
 				}
 		))
 

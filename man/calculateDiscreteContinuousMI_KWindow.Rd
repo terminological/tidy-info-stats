@@ -26,6 +26,8 @@ a dataframe containing the disctinct values of the groups of df, and for each gr
 }
 \description{
 This is based on the technique described here:
+}
+\details{
 B. C. Ross, “Mutual information between discrete and continuous data sets,” PLoS One, vol. 9, no. 2, p. e87357, Feb. 2014 [Online]. Available: http://dx_doi.org/10.1371/journal.pone.0087357
 but with the important simplification of using the sliding window K elements wide rather than the k nearest neighbours. This is empirically shown to have little difference on larger datasets
 and makes this algorithm simple to implement in dbplyr tables.

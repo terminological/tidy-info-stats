@@ -8,7 +8,7 @@ calculateDiscreteContinuousPointwiseMI_KNN(
   df,
   discreteVars,
   continuousVar,
-  k_05 = 4,
+  k_05 = 4L,
   useKWindow = TRUE,
   ...
 )
