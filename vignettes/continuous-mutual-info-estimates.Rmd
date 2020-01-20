@@ -59,12 +59,14 @@ s %>% calculateSelfInformation_Grassberger(groupVars=vars(x_discrete))
 
 devtools::load_all("..")
 # debug(calculateEntropy_MontgomerySmith)
+# debug(calculateContinuousEntropy_Quantile)
 
 bins = 24
 cutsDf = tibble(cut=seq(-1,3,length.out = bins-1))
 
 out = NULL
-method = c("MontgomerySmith", "Histogram","InfoTheo","Compression","Grassberger")
+method = c("Histogram") #,"InfoTheo","Compression","Grassberger","MontgomerySmith")
+continuousMethod = c("Quantile")
 for (dist in dists) {
   thEnt = dist$theoreticalEntropy()
   for (i in c(1:10)) { #0)) {
@@ -74,6 +76,17 @@ for (dist in dists) {
       #s = s %>% discretise(x, x_discrete, method="ByRank")
       for (m in method) {
         estimate = calculateEntropy(s, groupVars=vars(x_discrete), method = m, infoTheoMethod = "emp", mm=FALSE) %>% pull(I)
+        out = out %>% bind_rows(tibble(
+          N = 10*j,
+          method = m,
+          C = length(unique(s$x_discrete)),
+          dist = dist$label(),
+          estimate = estimate,
+          theoretical = thEnt
+        ))
+      }
+      for (m in continuousMethod) {
+        estimate = calculateContinuousEntropy(s, continuousVar=x, method = m, k_05=4) %>% pull(I)
         out = out %>% bind_rows(tibble(
           N = 10*j,
           method = m,

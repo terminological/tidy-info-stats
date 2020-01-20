@@ -22,13 +22,93 @@ calculateDiscreteContinuousMI = function(df, discreteVars, continuousVar, method
   )
 }
 
+#' summary info about the observations
+#' 
+#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
+#' @param expected - the total number of samples for each outcome expected if there were no missing values.
+summariseObservations(df, discreteVars, countVar = NULL) {
+  countVar = tryCatch(ensym(countVar),error = function(e) NULL)
+  grps = df %>% groups()
+  outerJoin = df %>% joinList(discreteVars)
+  
+  left = df %>% select(!!!grps) %>% distinct() %>% mutate(join=1)
+  right = df %>% ungroup() %>% select(!!!discreteVars) %>% distinct() %>% mutate(join=1)
+  cross = left %>% left_join(right, by="join")
+  
+  cross = cross %>% left_join(df %>% groupwiseCount(discreteVars, !!countVar, summarise=TRUE), by=outerJoin) %>%
+    mutate(
+      N_x = ifelse(is.na(N_x), 0, N_x),
+      N = ifelse(is.na(N), 0, N)
+    )
+  return(cross)
+}
+
+#' summary info
+#' 
+#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
+#' @param expected - the total number of samples for each outcome expected if there were no missing values.
+expectedObservations(df, discreteVars, expected) {
+  grps = df %>% groups()
+  left = df %>% select(!!!grps) %>% distinct() %>% mutate(join=1)
+  right = df %>% ungroup() %>% select(!!!discreteVars) %>% distinct() %>% mutate(join=1)
+  cross = left %>% left_join(right, by="join")
+  cross = cross %>% mutate(N_x = expected) %>% group_by(!!!grps) %>% mutate(N = sum(N_x))
+}
+
+#' calculate mutual information between a categorical value (X) and a continuous value (Y) where a total number of possible outcomes is known.
+#' 
+#' This corrects normal mutual information calculations for information carried by the absense of a variable. This is relevant for 
+#' sparse data sets with many features such as NLP terms.
+#' 
+#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
+#' @param continuousVar - the column of the continuous value (Y)
+#' @param expectedCount - a dataframe containing colums for grouping, and discreteVars, N and N_x columns with counts of
+#' @param method - the method employed - valid options are "KWindow","KNN","SGolay","DiscreteByRank","DiscreteByValue","Compression"
+#' @param ... - the other parameters are passed onto the implementations
+#' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @import dplyr
+#' @export
+calculateDiscreteContinuousUnlabelledMI(df, discreteVars, continuousVar, expectedCount, method="KWindow", ...) {
+  grps = df %>% groups()
+  I_given_present = calculateDiscreteContinuousConditionalMI(df, discretevars, {{continuousVar}}, method, ...)
+  outerJoinCols = df %>% joinList(discreteVars)
+  tmp = expectedCount %>% left_join(I_given_present %>% rename(N_lab = N, N_x_lab = N_x, I_given_lab_and_x = I_x), by=outerJoinCols) %>% 
+    mutate(
+      N_unlab = N - N_lab,
+      N_x_unlab = N_x - N_x_lab
+    ) %>% mutate(
+      # we need to know I_given_unlabelled_and_x
+      p_lab = as.double(N_lab)/N,
+      p_unlab = as.double(N_unlab)/N,
+      p_unlab_given_x = as.double(N_x_unlab)/N_x,
+      p_lab_given_x = as.double(N_x_lab)/N_x,
+      I_given_unlab_and_x = ifelse(p_unlab_given_x ==0,0,-log(p_unlab_given_x))
+    ) %>% mutate(
+      # combine labelled and unlabelled I (independent)
+      p_x = as.double(N_x)/N,
+      I_given_x = p_lab_given_x*I_given_lab_and_x + p_unlab_given_x * I_given_unlab_and_x
+    ) 
+    
+  tmp2 = tmp %>% group_by(!!!grps, method, N) %>% summarise(
+    I = sum(p_x * I_given_x),
+    I_sd = NA
+  ) %>% mutate(
+    method = paste0("Unlabelled - ",method)
+  )
+  
+  return(tmp2)
+}
+
 
 #' calculate a pointwise mutual information between a categorical value (X) and a continuous value (Y)
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
-#' @param method - the method employed - valid options are "KWindow","KNN"
+#' @param method - the method employed - valid options are "KWindow","KNN","Kernel","Quantile"
 #' @param ... - the other parameters are passed onto the implementations
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
@@ -38,7 +118,7 @@ calculateDiscreteContinuousConditionalMI = function(df, discreteVars, continuous
           KWindow = calculateDiscreteContinuousConditionalMI_KWindow(df, discreteVars, {{continuousVar}}, ...),
           KNN = calculateDiscreteContinuousConditionalMI_KNN(df, discreteVars, {{continuousVar}}, ...),
           Kernel = calculateDiscreteContinuousConditionalMI_Kernel(df, discreteVars, {{continuousVar}}, ...),
-          # SGolay = calculateDiscreteContinuousMI_SGolay(df, discreteVars, {{continuousVar}}, ...),
+          Quantile = calculateDiscreteContinuousConditionalMI_Entropy(df, discreteVars, {{continuousVar}}, ...),
           # DiscretiseByRank = calculateDiscreteContinuousMI_DiscretiseByRank(df, discreteVars, {{continuousVar}}, ...),
           # DiscretiseByValue = calculateDiscreteContinuousMI_DiscretiseByValue(df, discreteVars, {{continuousVar}}, ...),
           # Compression = calculateDiscreteContinuousMI_Compression(df, discreteVars, {{continuousVar}}, ...),
@@ -59,9 +139,10 @@ calculateDiscreteContinuousConditionalMI = function(df, discreteVars, continuous
 calculateDiscreteContinuousMI_Kernel = function(df, discreteVars, continuousVar, collect=FALSE, ...) { 
   grps = df %>% groups()
   
-  tmp5 = calculateDiscreteContinuousPointwiseMI_Kernel(df, discreteVars, {{continuousVar}}, collect, ...)
+  tmp5 = calculateDiscreteContinuousConditionalMI_Kernel(df, discreteVars, {{continuousVar}}, collect, ...)
   
   tmp6 = tmp5 %>% group_by(!!!grps) %>% summarise(
+    N = max(N),
     I = sum(p_x * I_given_x),
     I_sd = sum(p_x * I_given_x_sd),
     method = "Kernel"
@@ -75,7 +156,6 @@ calculateDiscreteContinuousMI_Kernel = function(df, discreteVars, continuousVar,
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
-#' @param k_05 - the half window width of the SG filter that smooths the data. This is dependent on data but typically not less that 10.
 #' @param collect - if TRUE will collect dbplyr tables before processing, otherwise (the default) will fail on dbplyr tables
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
@@ -114,6 +194,8 @@ calculateDiscreteContinuousConditionalMI_Kernel = function(df, discreteVars, con
       # TODO: this integegration could be improved. lead(pmi_xy,default = 0)
       d_I_d_xy = (pmi_xy+lag(pmi_xy,1,default=0))*as.double(y_continuous-lag(y_continuous))/2
     ) %>% group_by(!!!grps,!!!discreteVars) %>% summarise (
+      N = max(N),
+      N_x = max(N_x),
       p_x = max(p_x),
       I_given_x = sum(d_I_d_xy,na.rm=TRUE)/p_x, # this does the sum over x and computes the integral over y at the same time.
       I_given_x_sd = NA,
@@ -250,6 +332,8 @@ calculateDiscreteContinuousMI_SGolay = function(df, discreteVars, continuousVar,
     d_I_d_xy = (pmi_xy+lag(pmi_xy,1,default=0))*as.double(y_continuous-lag(y_continuous))/2
   ) %>% group_by(!!!grps) %>% summarise (
     min_N_x = min(N_x),
+    N = max(N),
+    min_N_x = min(N_x),
     I = sum(d_I_d_xy,na.rm=TRUE), # this does the sum over x and computes the integral over y at the same time.
     I_sd = NA,
     method = "SGolay"
@@ -283,6 +367,7 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar
   tmp5 = calculateDiscreteContinuousConditionalMI_KWindow(df, discreteVars, {{continuousVar}}, k_05, ...)
   
   tmp6 = tmp5 %>% group_by(!!!grps) %>% summarise(
+    N = max(N),
     I = sum(p_x * I_given_x),
     I_sd = sum(p_x * I_given_x_sd),
     method = "KWindow"
@@ -367,6 +452,8 @@ calculateDiscreteContinuousConditionalMI_KWindow = function(df, discreteVars, co
     )
   
   tmp5 = tmp4 %>% filter(!is.na(I_i)) %>% group_by(!!!grps,!!!discreteVars) %>% summarize(
+    N = max(N),
+    N_x = max(N_x),
     p_x = max(as.double(N_x)/N),
     I_given_x = mean(I_i,na.rm = TRUE),
     I_given_x_sd = sd(I_i,na.rm = TRUE)/sqrt(max(N,na.rm=TRUE))
@@ -405,7 +492,8 @@ calculateDiscreteContinuousMI_DiscretiseByRank = function(df, discreteVars, cont
   )
   
   tmp = tmp %>% discretise_ByRank(y_continuous, y_discrete, bins, binStrategy) %>% compute()
-  return(tmp %>% calculateDiscreteDiscreteMI(discreteVars, vars(y_discrete), method=discreteMethod, ...) %>% collect() %>% mutate(method = paste0("DiscretiseByRank - ",method)))
+  return(tmp %>% calculateDiscreteDiscreteMI(discreteVars, vars(y_discrete), method=discreteMethod, ...) %>% 
+           collect() %>% mutate(method = paste0("DiscretiseByRank - ",method)))
   
 }
 
@@ -430,7 +518,8 @@ calculateDiscreteContinuousMI_DiscretiseByValue = function(df, discreteVars, con
   
   tmp = tmp %>% discretise_ByValue(y_continuous, y_discrete, bins, binStrategy) %>% compute()
   
-  return(tmp %>% calculateDiscreteDiscreteMI(discreteVars, vars(y_discrete), method=discreteMethod, ...) %>% collect() %>% mutate(method = paste0("DiscretiseByValue - ",method)))
+  return(tmp %>% calculateDiscreteDiscreteMI(discreteVars, vars(y_discrete), method=discreteMethod, ...) %>% 
+           collect() %>% mutate(method = paste0("DiscretiseByValue - ",method)))
   
   #return(
   #  df %>% group_modify(function(d,...) {
@@ -469,9 +558,10 @@ calculateDiscreteContinuousMI_KNN = function(df, discreteVars, continuousVar, k_
     return(calculateDiscreteContinuousMI_KWindow(df, discreteVars, {{continuousVar}}, k_05))
   }
   
-  tmp5 = calculateDiscreteContinuousPointwiseMI_KNN(df, discreteVars, {{continuousVar}}, k_05, useKWindow, ...)
+  tmp5 = calculateDiscreteContinuousConditionalMI_KNN(df, discreteVars, {{continuousVar}}, k_05, useKWindow, ...)
 
   tmp6 = tmp5 %>% group_by(!!!grps) %>% summarise(
+    N = max(N),
     I = sum(p_x * I_given_x),
     I_sd = sum(p_x * I_given_x_sd),
     method = "KNN"
@@ -497,12 +587,12 @@ calculateDiscreteContinuousMI_KNN = function(df, discreteVars, continuousVar, k_
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousPointwiseMI_KNN = function(df, discreteVars, continuousVar, k_05=4L, useKWindow = TRUE,...) {
+calculateDiscreteContinuousConditionalMI_KNN = function(df, discreteVars, continuousVar, k_05=4L, useKWindow = TRUE,...) {
   grps = df %>% groups()
   maxN = df %>% group_by(!!!grps) %>% summarise(N = n()) %>% summarise(maxN = max(N, na.rm=TRUE)) %>% pull(maxN)
   if(maxN > 500 && useKWindow) {
     message("using KWindow method instead of KNN for larger sample")
-    return(calculateDiscreteContinuousPointwiseMI_KWindow(df, discreteVars, {{continuousVar}}, k_05))
+    return(calculateDiscreteContinuousConditionalMI_KWindow(df, discreteVars, {{continuousVar}}, k_05))
   }
   k_05 = as.integer(k_05)
   if (k_05<2L) k_05=2L
@@ -560,6 +650,8 @@ calculateDiscreteContinuousPointwiseMI_KNN = function(df, discreteVars, continuo
     )
   
   tmp5 = tmp4 %>% filter(!is.na(I_i)) %>% group_by(!!!grps,!!!discreteVars) %>% summarize(
+    N = max(N),
+    N_x = max(N_x),
     p_x = max(as.double(N_x)/N),
     I_given_x = mean(I_i,na.rm = TRUE),
     I_given_x_sd = sd(I_i,na.rm = TRUE)/sqrt(max(N,na.rm=TRUE))
@@ -663,6 +755,74 @@ calculateDiscreteContinuousMI_Compression = function(df, discreteVars, continuou
   
   return(tmp6)
   
+}
+
+#' calculate conditional mutual information between a discrete value (X) and a continuous value (Y) using estimates of differential entropy
+#' 
+#' @param df - may be grouped, in which case the grouping is interpreted as different types of discrete variable
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
+#' @param continuousVar - the column of the continuous value (Y)
+#' @param collect - unless TRUE this function will fail on dbplyr tables as there is no SQL implementation
+#' @param entropyMethod - the method used to calculate the entropy (see ?tidyinfostats::calculateEntropy) - defaults to "Grassberger"
+#' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @export
+calculateDiscreteContinuousConditionalMI_Entropy = function(df, discreteVars, continuousVar, entropyMethod="Quantile", ...) {
+  grps = df %>% groups()
+  joinList = df %>% joinList(defaultJoin = "join")
+  # list of join variables for join by value
+  innerJoinList = df %>% joinList(discreteVars)
+  outerJoinList = df %>% joinList(defaultJoin = "join")
+  continuousVar = ensym(continuousVar)
+  
+  tmp_H_y = df %>% group_by(!!!grps) %>% 
+    calculateContinuousEntropy(!!continuousVar, method = entropyMethod, ...) %>% 
+    rename(I_y = I, I_y_sd = I_sd) %>% 
+    mutate(join = 1)
+  
+  tmp = df %>% 
+    group_by(!!!grps, !!!discreteVars) %>% 
+    calculateContinuousEntropy(!!continuousVar, method = entropyMethod, ...) %>% 
+    rename(I_given_x = I, I_given_x_sd = I_sd) %>% 
+    mutate(join = 1)
+  
+  tmp_p_x = df %>% group_by(!!!grps) %>% 
+    groupwiseCount(discreteVars, summarise = TRUE) %>% 
+    mutate(p_x=as.double(N_x)/N, join=1)
+  
+  tmp2 = tmp %>% left_join(tmp_p_x, by=innerJoinList) %>% group_by(!!!grps) %>% left_join(tmp_H_y, by=innerJoinList)
+  
+  tmp5 = tmp2 %>% 
+    group_by(!!!grps,!!!discreteVars) %>% 
+    mutate(
+      I_given_x = I_y/p_x - I_given_x,
+      I_given_x_sd = I_y_sd/p_x + I_given_x_sd,
+      method = paste0("Entropy - ",entropyMethod)
+    )
+  
+  return(tmp5)
+  
+}
+
+
+#' calculate mutual information between a discrete value (X) and a continuous value (Y) using estimates of differential entropy
+#' 
+#' @param df - may be grouped, in which case the grouping is interpreted as different types of discrete variable
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
+#' @param continuousVar - the column of the continuous value (Y)
+#' @param collect - unless TRUE this function will fail on dbplyr tables as there is no SQL implementation
+#' @param entropyMethod - the method used to calculate the entropy (see ?tidyinfostats::calculateEntropy) - defaults to "Grassberger"
+#' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @export
+calculateDiscreteContinuousMI_Entropy = function(df, discreteVars, continuousVar, entropyMethod="Quantile", ...) {
+  grps = df %>% groups()
+  return(
+    df %>% calculateDiscreteContinuousConditionalMI_Entropy(discreteVars, {{continuousVar}}, entropyMethod, ...) %>% 
+      group_by(!!!grps) %>%
+      summarise(
+        I = sum(p_x*I_given_x),
+        I_sd = sum(I_given_x_sd*p_x)
+      )
+  )
 }
 
 
