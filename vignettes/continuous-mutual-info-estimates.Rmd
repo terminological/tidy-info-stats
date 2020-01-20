@@ -204,7 +204,10 @@ set.seed(101)
 results = results %>% rbind(testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Compression"))
 set.seed(101)
 results = results %>% rbind(testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByRank", binStrategy = linearBySize(8,4,256), discreteMethod="Entropy", entropyMethod="Compression"))
-results = results %>% rbind(tibble(test=c("hb","k"),I = c(hb$theoreticalMI(),k$theoreticalMI()), I_sd=NA,method=rep("theoretical",2)))
+
+testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Entropy", entropyMethod="Quantile")
+
+results = results %>% rbind(tibble(test=c("hb","k"),N=c(1000L,500L),I = c(hb$theoreticalMI(),k$theoreticalMI()), I_sd=as.numeric(NA),method=rep("theoretical",2)))
 
 results %>% group_by(test) %>% standardPrintOutput::mergeCells()
 
@@ -215,5 +218,6 @@ results %>% group_by(test) %>% standardPrintOutput::mergeCells()
 devtools::load_all("..")
 testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousConditionalMI(vars(outcome), value, method = "KWindow")
 testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousConditionalMI(vars(outcome), value, method = "Kernel")
-
+#debug(calculateDiscreteContinuousConditionalMI_Entropy)
+testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousConditionalMI(vars(outcome), value, method = "Entropy", entropyMethod="Quantile")
 ```

@@ -34,8 +34,6 @@ calculateContinuousEntropy = function(df, continuousVar, method, ...) {
   )
 }
 
-# TODO:
-# Entropy of continuous data - e.g. SGolay approach / discretisation
 # If there a method involving horizontal visibility?
 # https://stats.stackexchange.com/questions/97676/kozachenko-leonenko-entropy-estimation - 
 # a join on dense rank + 1, diff the values, diff the not dense rank, and then apply to digamma
@@ -45,8 +43,10 @@ calculateContinuousEntropy = function(df, continuousVar, method, ...) {
 # 
 
 #' calculate differential entropy of a continuous value (X) using a quantile function smoothing approach:
+#' Entropy of continuous data - e.g. SGolay approach / discretisation
 #' 
 #' The Savitsky Golay filter width required to make this at all accurate needs a reasonable amount of data ~ 20 points
+#' S. M. Sunoj and P. G. Sankaran, “Quantile based entropy function,” Stat. Probab. Lett., vol. 82, no. 6, pp. 1049–1053, Jun. 2012, doi: 10.1016/j.spl.2012.02.005. [Online]. Available: http://www.sciencedirect.com/science/article/pii/S0167715212000521
 #' 
 #' @param df - may be grouped, in which case the grouping is interpreted as different types of discrete variable
 #' @param groupVars - the columns of the discrete value quoted by the vars() function (e.g. ggplot facet_wrap)
@@ -74,20 +74,20 @@ calculateContinuousEntropy_Quantile = function(df, continuousVar, k_05=10, colle
       samples = min(d$N,na.rm=TRUE)
       if (k < samples-1L) {
         d_Q_d_p = signal::sgolayfilt(d$y_continuous, p=2, n=k, m=1, ts=1.0/(samples+1L))
-        return(
-          tibble(
+        tmp3 = tibble(
             N = d$N,
             y_continuous = d$y_continuous,
             d_Q_d_p = d_Q_d_p
           ) %>% mutate(
             log_d_Q = log(ifelse(d_Q_d_p <= 0, 0.00001, d_Q_d_p))
-          ) %>% summarise(
+          ) 
+        tmp4 = tmp3 %>% summarise(
             N = max(d$N),
-            I = sum(log_d_Q*(1.0/(d$N+1L)),na.rm = TRUE),
+            I = sum(log_d_Q*(1.0/(samples+1L)),na.rm = TRUE),
             I_sd = NA,
             method="Quantile"
           )
-        )
+        return(tmp4)
       } else {
         return(
           tibble(
@@ -104,7 +104,6 @@ calculateContinuousEntropy_Quantile = function(df, continuousVar, k_05=10, colle
   return(tmp2)
   
 }
-
 
 #' calculate entropy of an optionally ordered discrete value (X) using estimates of entropy from method 2 in the following:
 #' 

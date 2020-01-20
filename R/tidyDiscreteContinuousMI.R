@@ -3,7 +3,7 @@
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
-#' @param method - the method employed - valid options are "KWindow","KNN","SGolay","DiscreteByRank","DiscreteByValue","Compression"
+#' @param method - the method employed - valid options are "KWindow","KNN","SGolay","DiscreteByRank","DiscreteByValue","Compression","Entropy"
 #' @param ... - the other parameters are passed onto the implementations
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
@@ -17,6 +17,7 @@ calculateDiscreteContinuousMI = function(df, discreteVars, continuousVar, method
     DiscretiseByRank = calculateDiscreteContinuousMI_DiscretiseByRank(df, discreteVars, {{continuousVar}}, ...),
     DiscretiseByValue = calculateDiscreteContinuousMI_DiscretiseByValue(df, discreteVars, {{continuousVar}}, ...),
     Compression = calculateDiscreteContinuousMI_Compression(df, discreteVars, {{continuousVar}}, ...),
+    Entropy = calculateDiscreteContinuousMI_Entropy(df, discreteVars, {{continuousVar}}, ...),
     {stop(paste0(method," not a valid option"))}
     
   )
@@ -27,7 +28,7 @@ calculateDiscreteContinuousMI = function(df, discreteVars, continuousVar, method
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param expected - the total number of samples for each outcome expected if there were no missing values.
-summariseObservations(df, discreteVars, countVar = NULL) {
+summariseObservations = function(df, discreteVars, countVar = NULL) {
   countVar = tryCatch(ensym(countVar),error = function(e) NULL)
   grps = df %>% groups()
   outerJoin = df %>% joinList(discreteVars)
@@ -49,7 +50,7 @@ summariseObservations(df, discreteVars, countVar = NULL) {
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param expected - the total number of samples for each outcome expected if there were no missing values.
-expectedObservations(df, discreteVars, expected) {
+expectedObservations = function(df, discreteVars, expected) {
   grps = df %>% groups()
   left = df %>% select(!!!grps) %>% distinct() %>% mutate(join=1)
   right = df %>% ungroup() %>% select(!!!discreteVars) %>% distinct() %>% mutate(join=1)
@@ -71,7 +72,7 @@ expectedObservations(df, discreteVars, expected) {
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousUnlabelledMI(df, discreteVars, continuousVar, expectedCount, method="KWindow", ...) {
+calculateDiscreteContinuousUnlabelledMI = function(df, discreteVars, continuousVar, expectedCount, method="KWindow", ...) {
   grps = df %>% groups()
   I_given_present = calculateDiscreteContinuousConditionalMI(df, discretevars, {{continuousVar}}, method, ...)
   outerJoinCols = df %>% joinList(discreteVars)
@@ -118,7 +119,7 @@ calculateDiscreteContinuousConditionalMI = function(df, discreteVars, continuous
           KWindow = calculateDiscreteContinuousConditionalMI_KWindow(df, discreteVars, {{continuousVar}}, ...),
           KNN = calculateDiscreteContinuousConditionalMI_KNN(df, discreteVars, {{continuousVar}}, ...),
           Kernel = calculateDiscreteContinuousConditionalMI_Kernel(df, discreteVars, {{continuousVar}}, ...),
-          Quantile = calculateDiscreteContinuousConditionalMI_Entropy(df, discreteVars, {{continuousVar}}, ...),
+          Entropy = calculateDiscreteContinuousConditionalMI_Entropy(df, discreteVars, {{continuousVar}}, ...),
           # DiscretiseByRank = calculateDiscreteContinuousMI_DiscretiseByRank(df, discreteVars, {{continuousVar}}, ...),
           # DiscretiseByValue = calculateDiscreteContinuousMI_DiscretiseByValue(df, discreteVars, {{continuousVar}}, ...),
           # Compression = calculateDiscreteContinuousMI_Compression(df, discreteVars, {{continuousVar}}, ...),
@@ -435,7 +436,9 @@ calculateDiscreteContinuousConditionalMI_KWindow = function(df, discreteVars, co
   
   # there are situations where this estimate can go negative - its to do with the estimation error in small sample sizez
   # and the fact that in the window method the sliding is potentially centred around different points
-  tmp4 = tmp4 %>% mutate(m_i = ifelse(m_i > k,NA,m_i)) %>% compute()
+  # TODO: try and understand this:
+  # tmp4 = tmp4 %>% mutate(m_i = ifelse(m_i < k,NA,m_i)) %>% compute()
+  tmp4 = tmp4 %>% compute()
   
   # TODO: what happens when there are not enough points in one class? As is we seem to get conditional estimate based on one class
   # but not the other. In the extreme case where there are no points in the minority class we get a degnerate behaviour and
@@ -747,9 +750,9 @@ calculateDiscreteContinuousMI_Compression = function(df, discreteVars, continuou
   # https://en.wikipedia.org/wiki/Conditional_entropy
   # H(Y|X) = SUM(over all x) P(x)*H(Y|X=x)
   # I(X,Y) = H(Y) - H(Y|X)
-  tmp6 = tmp3 %>% inner_join(tmp5, by=join2List) %>% ungroup() %>% group_by(!!!grps)  %>% summarise(
+  tmp6 = tmp3 %>% inner_join(tmp5, by=join2List) %>% ungroup() %>% group_by(!!!grps,N)  %>% summarise(
     I = Hy - Hygivenx,
-    I_sd = NA,
+    I_sd = as.numeric(NA),
     method = "Compression"
   )
   
@@ -767,38 +770,38 @@ calculateDiscreteContinuousMI_Compression = function(df, discreteVars, continuou
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @export
 calculateDiscreteContinuousConditionalMI_Entropy = function(df, discreteVars, continuousVar, entropyMethod="Quantile", ...) {
+  stop("not working")
   grps = df %>% groups()
-  joinList = df %>% joinList(defaultJoin = "join")
+  #joinList = df %>% joinList(defaultJoin = "join")
   # list of join variables for join by value
   innerJoinList = df %>% joinList(discreteVars)
-  outerJoinList = df %>% joinList(defaultJoin = "join")
+  outerJoinList = df %>% joinList(defaultJoin = "tmp_join")
   continuousVar = ensym(continuousVar)
   
   tmp_H_y = df %>% group_by(!!!grps) %>% 
     calculateContinuousEntropy(!!continuousVar, method = entropyMethod, ...) %>% 
-    rename(I_y = I, I_y_sd = I_sd) %>% 
-    mutate(join = 1)
+    rename(I_y = I, I_y_sd = I_sd) %>% mutate(tmp_join = 1L)
   
   tmp = df %>% 
     group_by(!!!grps, !!!discreteVars) %>% 
     calculateContinuousEntropy(!!continuousVar, method = entropyMethod, ...) %>% 
-    rename(I_given_x = I, I_given_x_sd = I_sd) %>% 
-    mutate(join = 1)
+    rename(I_given_x = I, I_given_x_sd = I_sd)
   
   tmp_p_x = df %>% group_by(!!!grps) %>% 
     groupwiseCount(discreteVars, summarise = TRUE) %>% 
-    mutate(p_x=as.double(N_x)/N, join=1)
+    mutate(p_x=as.double(N_x)/N)
   
-  tmp2 = tmp %>% left_join(tmp_p_x, by=innerJoinList) %>% group_by(!!!grps) %>% left_join(tmp_H_y, by=innerJoinList)
+  tmp2 = tmp %>% left_join(tmp_p_x, by=innerJoinList) %>% mutate(tmp_join = 1L)
+  tmp2 = tmp2 %>% left_join(tmp_H_y, by=outerJoinList)
   
   tmp5 = tmp2 %>% 
     group_by(!!!grps,!!!discreteVars) %>% 
     mutate(
-      I_given_x = I_y/p_x - I_given_x,
-      I_given_x_sd = I_y_sd/p_x + I_given_x_sd,
+      I_given_x = I_y*p_x - I_given_x,
+      I_given_x_sd = I_y_sd*p_x + I_given_x_sd,
       method = paste0("Entropy - ",entropyMethod)
     )
-  
+  browser()
   return(tmp5)
   
 }

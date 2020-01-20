@@ -14,6 +14,7 @@ calculateMultiClassMI = function(df) {
       pmi_x1y1 = ifelse( p_x1y1==0, ifelse(p_x1==0 | p_y1==0, 0, NA), log(p_x1y1/(p_x1*p_y1)) ),
       I_xy = ifelse(p_x1y1==0|p_x1==0|p_y1==0, 0, p_x1y1*pmi_x1y1)
     ) %>% summarise(
+      N = max(N),
       I = sum(I_xy, na.rm=TRUE), #+ifelse(adjust,mm_adjust,0),
       I_sd = NA,
       method = "Empirical" #ifelse(adjust,"Empirical MM","Empirical")
@@ -74,20 +75,20 @@ calculateDiscreteDiscreteMI_Entropy = function(df, groupXVars, groupYVars, entro
   Px = df %>% group_by(!!!grps) %>% groupwiseCount(groupXVars, summarise = TRUE) %>% mutate(p_x=as.double(N_x)/N, join=1)
   
   suppressWarnings({
-    Hygivenx = Hygivenx_tmp %>% left_join(Px, by=groupJoinList) %>% group_by(!!!grps) %>% summarise(
+    Hygivenx = Hygivenx_tmp %>% left_join(Px, by=groupJoinList) %>% group_by(!!!grps,N) %>% summarise(
       Hygivenx = sum(Hygivenx*p_x,na.rm = TRUE), 
       Hygivenx_sd = max(Hygivenx_sd*p_x,na.rm = TRUE)
     ) %>% mutate(join = 1) # sometimes max term has no non NA values. In which case this is NAl, which is ok but generates a warning
   })
   
   #TODO: refactor this to get a pointwise MI based on Hy/Px - H
-  
+  # browser()
   tmp2 = Hy %>% left_join(Hygivenx, by=joinList) %>% mutate(
     I = Hy-Hygivenx, 
     # TODO: can we calculate Hx Hy and Hxy from all this?
     I_sd = Hy_sd+Hygivenx_sd,
     method =  paste0("Entropy - ",entropyMethod)
-    ) %>% select(!!!grps, I, I_sd, method)
+    ) %>% select(!!!grps, N, I, I_sd, method)
   
   return(tmp2 %>% ungroup())
 }
