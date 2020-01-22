@@ -2,7 +2,7 @@
 % Please edit documentation in R/dbplyHelper.R
 \name{coefficientAdj}
 \alias{coefficientAdj}
-\title{adjust the coefficients of a SGoly filter (WIP)}
+\title{adjust the baseline coefficients of a SGoly filter for specifc derivative order and sample size (WIP)}
 \usage{
 coefficientAdj(sgolayTable, sampleSizeVar)
 }
@@ -12,5 +12,5 @@ coefficientAdj(sgolayTable, sampleSizeVar)
 \item{sampleSizeVar}{- the colum containing the sample size it is to be applied to}
 }
 \description{
-adjust the coefficients of a SGoly filter (WIP)
+adjust the baseline coefficients of a SGoly filter for specifc derivative order and sample size (WIP)
 }

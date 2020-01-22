@@ -2,7 +2,7 @@
 % Please edit documentation in R/dbplyHelper.R
 \name{applySGolayFilter}
 \alias{applySGolayFilter}
-\title{apply a sgolay filter (WIP)}
+\title{apply a sgolay filter (WIP) to data in a dbplyr dataframe}
 \usage{
 applySGolayFilter(df, continuousVar, k_05 = 10)
 }
@@ -14,5 +14,5 @@ applySGolayFilter(df, continuousVar, k_05 = 10)
 \item{k_05}{- the half value of the filter width}
 }
 \description{
-apply a sgolay filter (WIP)
+apply a sgolay filter (WIP) to data in a dbplyr dataframe
 }

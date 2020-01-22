@@ -19,7 +19,7 @@ calculateDiscreteDiscreteMI_Entropy(
 
 \item{groupYVars}{- the column of the discrete value (Y)}
 
-\item{entropyMethod}{- the method used to calculate the entropy (see ?tidyinfostats::calculateEntropy) - defaults to "Grassberger"}
+\item{entropyMethod}{- the method used to calculate the entropy (see ?tidyinfostats::calculateDiscreteEntropy) - defaults to "Grassberger"}
 }
 \value{
 a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry

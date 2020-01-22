@@ -19,7 +19,7 @@ calculateDiscreteContinuousMI_Entropy(
 
 \item{continuousVar}{- the column of the continuous value (Y)}
 
-\item{entropyMethod}{- the method used to calculate the entropy (see ?tidyinfostats::calculateEntropy) - defaults to "Grassberger"}
+\item{entropyMethod}{- the method used to calculate the entropy (see ?tidyinfostats::calculateDiscreteEntropy) - defaults to "Grassberger"}
 
 \item{collect}{- unless TRUE this function will fail on dbplyr tables as there is no SQL implementation}
 }
