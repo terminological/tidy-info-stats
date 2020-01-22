@@ -20,8 +20,6 @@ calculateDiscreteContinuousConditionalMI_Kernel(
 \item{continuousVar}{- the column of the continuous value (Y)}
 
 \item{collect}{- if TRUE will collect dbplyr tables before processing, otherwise (the default) will fail on dbplyr tables}
-
-\item{k_05}{- the half window width of the SG filter that smooths the data. This is dependent on data but typically not less that 10.}
 }
 \value{
 a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry

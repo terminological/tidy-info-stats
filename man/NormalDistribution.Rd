@@ -26,6 +26,7 @@ Get a normal distribution wrapper
 \itemize{
 \item \href{#method-new}{\code{NormalDistribution$new()}}
 \item \href{#method-label}{\code{NormalDistribution$label()}}
+\item \href{#method-theoreticalEntropy}{\code{NormalDistribution$theoreticalEntropy()}}
 \item \href{#method-clone}{\code{NormalDistribution$clone()}}
 }
 }
@@ -39,7 +40,6 @@ Get a normal distribution wrapper
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="plot">}\href{../../tidyinfostats/html/Distribution.html#method-plot}{\code{tidyinfostats::Distribution$plot()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="q">}\href{../../tidyinfostats/html/Distribution.html#method-q}{\code{tidyinfostats::Distribution$q()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="sample">}\href{../../tidyinfostats/html/Distribution.html#method-sample}{\code{tidyinfostats::Distribution$sample()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="theoreticalEntropy">}\href{../../tidyinfostats/html/Distribution.html#method-theoreticalEntropy}{\code{tidyinfostats::Distribution$theoreticalEntropy()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="twoDp">}\href{../../tidyinfostats/html/Distribution.html#method-twoDp}{\code{tidyinfostats::Distribution$twoDp()}}\out{</span>}
 }
 \out{</details>}
@@ -75,6 +75,18 @@ gets a label for this distribution based on the parameters passed
 
 \subsection{Returns}{
 a string
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-theoreticalEntropy"></a>}}
+\subsection{Method \code{theoreticalEntropy()}}{
+calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{NormalDistribution$theoreticalEntropy()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+a value
 }
 }
 \if{html}{\out{<hr>}}

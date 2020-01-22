@@ -426,7 +426,7 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 					pxy = function(x) py*sapply(self$dists, function(dist) dist$p(x)) # i.e. p(y) * p(x given y)
 					px = function(x) sapply(x, function(x) sum(pxy(x))) # this gives us over all x
 					xpx = function(x) x*px(x)
-					return(integrate(xpx,-Inf,Inf)$value)
+					return(integrate(xpx,-Inf,Inf, subdivisions=10000)$value)
 				},
 				
 				#' @description generate the theoretical variance
@@ -437,7 +437,7 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 					pxy = function(x) py*sapply(self$dists, function(dist) dist$p(x)) # i.e. p(y) * p(x given y)
 					px = function(x) sapply(x, function(x) sum(pxy(x))) # this gives us over all x
 					sdpx = function(x) ((x-mu)^2)*px(x)
-					return(integrate(sdpx,-Inf,Inf)$value)
+					return(integrate(sdpx,-Inf,Inf, subdivisions=10000)$value)
 				}
 		
 		))

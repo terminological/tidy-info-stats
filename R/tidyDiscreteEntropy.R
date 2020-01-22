@@ -7,103 +7,18 @@
 #' @return a single value for the entropy of the vector
 #' @import dplyr
 #' @export
-calculateEntropy = function(df, groupVars, method, ...) {
+calculateDiscreteEntropy = function(df, groupVars, method, ...) {
   switch (method,
-          MontgomerySmith = calculateEntropy_MontgomerySmith(df, groupVars, ...),
-          Histogram = calculateEntropy_Histogram(df, groupVars, ...),
-          Grassberger = calculateEntropy_Grassberger(df, groupVars, ...),
-          InfoTheo = calculateEntropy_InfoTheo(df, groupVars, ...),
-          Compression = calculateEntropy_Compression(df, groupVars, ...),
+          MontgomerySmith = calculateDiscreteEntropy_MontgomerySmith(df, groupVars, ...),
+          Histogram = calculateDiscreteEntropy_Histogram(df, groupVars, ...),
+          Grassberger = calculateDiscreteEntropy_Grassberger(df, groupVars, ...),
+          InfoTheo = calculateDiscreteEntropy_InfoTheo(df, groupVars, ...),
+          Compression = calculateDiscreteEntropy_Compression(df, groupVars, ...),
           {stop(paste0(method," not a valid option"))}
   )
 }
 
-#' calculate entropy of a sequence of 
-#' 
-#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
-#' @param groupVars - the columns of the discrete value quoted by the vars() function (e.g. ggplot facet_wrap)
-#' @param method - the method employed - valid options are "MontgomerySmith", "Histogram", "Grassberger", "InfoTheo", "Compression"
-#' @param ... - the other parameters are passed onto the implementations
-#' @return a single value for the entropy of the vector
-#' @import dplyr
-#' @export
-calculateContinuousEntropy = function(df, continuousVar, method, ...) {
-  switch (method,
-          Quantile = calculateContinuousEntropy_Quantile(df, {{continuousVar}}, ...),
-          {stop(paste0(method," not a valid option"))}
-  )
-}
 
-# If there a method involving horizontal visibility?
-# https://stats.stackexchange.com/questions/97676/kozachenko-leonenko-entropy-estimation - 
-# a join on dense rank + 1, diff the values, diff the not dense rank, and then apply to digamma
-
-# https://en.wikipedia.org/wiki/Differential_entropy - Quantile function
-# estimate rate of change at ends based on no information. - possible just adjust the area estimate by (N-2)/N 
-# 
-
-#' calculate differential entropy of a continuous value (X) using a quantile function smoothing approach:
-#' Entropy of continuous data - e.g. SGolay approach / discretisation
-#' 
-#' The Savitsky Golay filter width required to make this at all accurate needs a reasonable amount of data ~ 20 points
-#' S. M. Sunoj and P. G. Sankaran, “Quantile based entropy function,” Stat. Probab. Lett., vol. 82, no. 6, pp. 1049–1053, Jun. 2012, doi: 10.1016/j.spl.2012.02.005. [Online]. Available: http://www.sciencedirect.com/science/article/pii/S0167715212000521
-#' 
-#' @param df - may be grouped, in which case the grouping is interpreted as different types of discrete variable
-#' @param groupVars - the columns of the discrete value quoted by the vars() function (e.g. ggplot facet_wrap)
-#' @param continuousVar - the column of the continuous value (Y)
-#' @param k_05 - the half window width of the SG filter that smooths the data. This is dependent on data but typically not less that 10.
-#' @param collect - if TRUE will collect dbplyr tables before processing, otherwise (the default) will fail on dbplyr tables
-#' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
-#' @import dplyr
-#' @export
-calculateContinuousEntropy_Quantile = function(df, continuousVar, k_05=10, collect = FALSE, ...) {
-  df = collectDf(df,collect)
-  grps = df %>% groups()
-  
-  continuousVar = ensym(continuousVar)
-  #joinList = joinList(df, discreteVars)
-  
-  tmp = df %>% group_by(!!!grps) %>% mutate(
-    N = n(),
-    y_continuous = !!continuousVar
-  )
-  
-  tmp2 = tmp %>%  group_by(!!!grps) %>% arrange(y_continuous) %>% group_modify(
-    function(d,...) {
-      k = k_05*2+1
-      samples = min(d$N,na.rm=TRUE)
-      if (k < samples-1L) {
-        d_Q_d_p = signal::sgolayfilt(d$y_continuous, p=2, n=k, m=1, ts=1.0/(samples+1L))
-        tmp3 = tibble(
-            N = d$N,
-            y_continuous = d$y_continuous,
-            d_Q_d_p = d_Q_d_p
-          ) %>% mutate(
-            log_d_Q = log(ifelse(d_Q_d_p <= 0, 0.00001, d_Q_d_p))
-          ) 
-        tmp4 = tmp3 %>% summarise(
-            N = max(d$N),
-            I = sum(log_d_Q*(1.0/(samples+1L)),na.rm = TRUE),
-            I_sd = NA,
-            method="Quantile"
-          )
-        return(tmp4)
-      } else {
-        return(
-          tibble(
-            N = max(d$N),
-            I = NA,
-            I_sd = NA,
-            method="Quantile"
-          )
-        )
-      }
-    }
-  )
-  
-  return(tmp2)
-  
-}
 
 #' calculate entropy of an optionally ordered discrete value (X) using estimates of entropy from method 2 in the following:
 #' 
@@ -117,7 +32,7 @@ calculateContinuousEntropy_Quantile = function(df, continuousVar, k_05=10, colle
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateEntropy_MontgomerySmith = function(df, groupVars, orderingVar = NULL, ...) {
+calculateDiscreteEntropy_MontgomerySmith = function(df, groupVars, orderingVar = NULL, ...) {
   
   # Euler–Mascheroni constant (lambda)
   lambda = 0.577215664901532
@@ -165,11 +80,11 @@ calculateEntropy_MontgomerySmith = function(df, groupVars, orderingVar = NULL, .
     #mutate(Hx = -digammaN+digammaNX+lambda+digammak) #TODO: some adjustment here is possivle - this is zero based
     mutate(Hx = digammak+lambda)
   
-  tmp2 = tmp %>% group_by(!!!grps) %>% summarise(
+  tmp2 = tmp %>% group_by(!!!grps, N) %>% summarise(
     # H = (mean(digammak, na.rm=TRUE) + lambda), #-digammaC_x+log(C_x), na.rm=TRUE) + lambda),
     I = mean(Hx, na.rm=TRUE),
     # H_sd = sd(digammak, na.rm=TRUE)/sqrt(max(N, na.rm=TRUE)) #-digammaC_x+log(C_x), na.rm=TRUE)
-    I_sd = sd(Hx, na.rm=TRUE)/sqrt(max(N, na.rm=TRUE)), #-digammaC_x+log(C_x), na.rm=TRUE)
+    I_sd = sd(Hx, na.rm=TRUE)/sqrt(N), #-digammaC_x+log(C_x), na.rm=TRUE)
     method = "MontgomerySmith" 
   )  
   
@@ -182,41 +97,7 @@ calculateEntropy_MontgomerySmith = function(df, groupVars, orderingVar = NULL, .
   
 }
 
-#' calculate entropy of an optionally discrete value (X) using a histogram approach
-#' 
-#' see: R. de Matos Simoes and F. Emmert-Streib, “Influence of statistical estimators of mutual information and data heterogeneity on the inference of gene regulatory networks,” PLoS One, vol. 6, no. 12, p. e29279, Dec. 2011 [Online]. Available: http://dx.doi.org/10.1371/journal.pone.0029279
-#' 
-#' @param df - may be grouped, in which case the grouping is interpreted as different types of discrete variable
-#' @param groupVars - the columns of the discrete value quoted by the vars() function (e.g. ggplot facet_wrap)
-#' @param mm - Apply a miller-madow adjustment to the result
-#' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
-#' @import dplyr
-#' @export
-calculateSelfInformation_Histogram = function(df, groupVars,  countVar=NULL, mm=TRUE, ...) {
-  grps = df %>% groups()
-  countVar = tryCatch(ensym(countVar),error = function(e) NULL)
-  # groupVars = ensyms(groupVars)
-  
-  tmp = df %>% groupwiseCount(groupVars, !!countVar, summarise=TRUE) %>% 
-    group_by(!!!grps) %>% 
-    mutate(
-      p_x = as.double(N_x)/N
-    )
-  if (mm) {
-    tmp = tmp %>% mutate(
-      C_x = n(),
-      I_x = -log(p_x) + as.double(C_x-1)/(2*N*p_x*C_x),
-      method = "Histogram MM"
-    ) %>% select(-C_x)
-  } else {
-    tmp = tmp %>% mutate(
-      I_x = -log(p_x),
-      method = "Histogram"
-    )
-  }
-  
-  return(tmp)
-}
+
 
 #' calculate entropy of an optionally discrete value (X) using a histogram approach
 #' 
@@ -228,17 +109,17 @@ calculateSelfInformation_Histogram = function(df, groupVars,  countVar=NULL, mm=
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateEntropy_Histogram = function(df, groupVars,  countVar=NULL, mm=TRUE, ...) {
+calculateDiscreteEntropy_Histogram = function(df, groupVars,  countVar=NULL, mm=TRUE, ...) {
   grps = df %>% groups()
   countVar = tryCatch(ensym(countVar),error = function(e) NULL)
   # groupVars = ensyms(groupVars)
   
   tmp = df %>% calculateSelfInformation_Histogram(groupVars, !!countVar, mm)
   
-  tmp3 = tmp %>% ungroup() %>% group_by(!!!grps) %>% summarise(
+  tmp3 = tmp %>% ungroup() %>% group_by(!!!grps, N) %>% summarise(
     I = sum(p_x*I_x,na.rm = TRUE), 
     I_sd = NA,
-    method = max(method)
+    method = "Histogram"
   )
   
   return(tmp3 %>% ungroup())
@@ -256,7 +137,7 @@ calculateEntropy_Histogram = function(df, groupVars,  countVar=NULL, mm=TRUE, ..
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateEntropy_Grassberger = function(df, groupVars, countVar=NULL, ...) {
+calculateDiscreteEntropy_Grassberger = function(df, groupVars, countVar=NULL, ...) {
   grps = df %>% groups()
   countVar = tryCatch(ensym(countVar),error = function(e) NULL)
   # groupVars = ensyms(groupVars)
@@ -268,8 +149,8 @@ calculateEntropy_Grassberger = function(df, groupVars, countVar=NULL, ...) {
       G_N_x = digamma_N_x + ((-1)^N_x)/(N_x*(N_x+1)), #TODO: consider expanding for l=1, l=2, etc...
     )
   
-  tmp3 = tmp2 %>% ungroup() %>% group_by(!!!grps) %>% summarise(
-    I = log(max(N,na.rm=TRUE)) - sum(p_x * G_N_x,na.rm = TRUE),
+  tmp3 = tmp2 %>% ungroup() %>% group_by(!!!grps, N) %>% summarise(
+    I = log(N) - sum(p_x * G_N_x,na.rm = TRUE),
     I_sd = NA,
     method = "Grassberger"
   ) 
@@ -279,39 +160,6 @@ calculateEntropy_Grassberger = function(df, groupVars, countVar=NULL, ...) {
 
 
 
-#' calculate self information of a discrete value (X) using a histogram approach using the following method
-#' 
-#' P. Grassberger, “Entropy Estimates from Insufficient Samplings,” arXiv [physics.data-an], 29-Jul-2003 [Online]. Available: http://arxiv.org/abs/physics/0307138
-#' 
-#' but with a digamma based function (rather than harmonics) detailed in eqns 31 & 35.
-#' For our purposes we fix l=0 to give the form in eqn 27. The error in this method is supposedly better for undersampled cases (where number of bins similar to number of samples)
-#'  
-#' @param df - may be grouped, in which case the grouping is interpreted as different types of discrete variable
-#' @param groupVars - the columns of the discrete value quoted by the vars() function (e.g. ggplot facet_wrap)
-#' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
-#' @import dplyr
-#' @export
-calculateSelfInformation_Grassberger = function(df, groupVars, countVar=NULL, ...) {
-  grps = df %>% groups()
-  countVar = tryCatch(ensym(countVar),error = function(e) NULL)
-  # groupVars = ensyms(groupVars)
-  
-  tmp = df %>% groupwiseCount(groupVars, !!countVar, summarise=TRUE) %>% group_by(!!!grps) %>% mutate(C_x = n())
-  tmp2 = tmp %>% calculateDigamma(N_x,digamma_N_x) %>% 
-    mutate(
-      p_x = as.double(N_x)/N,
-      G_N_x = digamma_N_x + ((-1)^N_x)/(N_x*(N_x+1)), #TODO: consider expanding for l=1, l=2, etc...
-      I2_x = -log(p_x)
-    )
-  
-  tmp3 = tmp2 %>% ungroup() %>% group_by(!!!grps) %>% mutate(
-    H2 = sum(p_x*I2_x),
-    H = log(N) - sum(p_x * G_N_x,na.rm = TRUE),
-    I_x = H/H2*I2_x
-  ) %>% select(-c(H2,H,I2_x,G_N_x))
-    
-  return(tmp3 %>% ungroup() %>% mutate(method="Grassberger"))
-}
 
 #' calculate entropy of an optionally discrete value (X) using a infotheo library
 #' 
@@ -322,7 +170,7 @@ calculateSelfInformation_Grassberger = function(df, groupVars, countVar=NULL, ..
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateEntropy_InfoTheo = function(df, groupVars, infoTheoMethod="mm", collect=FALSE, ...) {
+calculateDiscreteEntropy_InfoTheo = function(df, groupVars, infoTheoMethod="mm", collect=FALSE, ...) {
   df = collectDf(df,collect)
   grps = df %>% groups()
   # groupVars = ensyms(groupVars)
@@ -340,7 +188,7 @@ calculateEntropy_InfoTheo = function(df, groupVars, infoTheoMethod="mm", collect
   #) %>% 
     left_join(groupIds, by = groupsJoin)
   
-  tmp2 = tmp %>% ungroup() %>% group_by(!!!grps) %>% group_modify(function(d,...) {
+  tmp2 = tmp %>% ungroup() %>% group_by(!!!grps,N) %>% group_modify(function(d,...) {
     tibble(
       I = infotheo::entropy(d$x_int, method=infoTheoMethod),
       I_sd = NA,
@@ -362,7 +210,7 @@ calculateEntropy_InfoTheo = function(df, groupVars, infoTheoMethod="mm", collect
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateEntropy_Compression = function(df, groupVars, orderingVar = NULL, collect=FALSE, ...) {
+calculateDiscreteEntropy_Compression = function(df, groupVars, orderingVar = NULL, collect=FALSE, ...) {
   df = collectDf(df,collect)
   grps = df %>% groups()
   # groupVars = ensyms(groupVars)
@@ -412,7 +260,7 @@ calculateEntropy_Compression = function(df, groupVars, orderingVar = NULL, colle
     ))
   })
   
-  return(tmp2 %>% ungroup() %>% select(-c(C_x,N)))
+  return(tmp2 %>% ungroup() %>% select(-C_x))
 }
 
 

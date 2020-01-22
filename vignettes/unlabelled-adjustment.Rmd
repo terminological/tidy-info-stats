@@ -1,0 +1,80 @@
+---
+title: "Untitled"
+output: html_document
+knit: (function(inputFile, encoding,...) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "~/Dropbox/featureSelection/tidyinfostats") })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(infotheo)
+library(tidyverse)
+library(ggplot2)
+library(devtools)
+#library(tidyinfostats)
+devtools::load_all("~/Git/tidy-info-stats/")
+set.seed(101)
+theme_set(standardPrintOutput::defaultFigureLayout())
+```
+
+# Check entropy calculations working:
+
+Assume a continuous distribution
+
+```{r}
+hb = ConditionalDistribution$new()
+hb$withDistribution(0.75, LogNormalDistribution$new(mode=12,var=2), "asymptomatic")
+hb$withDistribution(0.25, LogNormalDistribution$new(mode=8,var=3), "tired")
+hb$withDistribution(0, LogNormalDistribution$new(mode=4,var=5), "unwell")
+
+
+k = ConditionalDistribution$new()
+k$withDistribution(0.4, NormalDistribution$new(mean=1,sd=0.5), "unwell")
+k$withDistribution(0.6, NormalDistribution$new(mean=2,sd=1), "asymptomatic")
+k$withDistribution(0, NormalDistribution$new(mean=8,sd=3), "tired")
+
+na = ConditionalDistribution$new()
+na$withDistribution(0, NormalDistribution$new(mean=15,sd=5), "unwell")
+na$withDistribution(1, NormalDistribution$new(mean=14,sd=5), "asymptomatic")
+na$withDistribution(0, NormalDistribution$new(mean=12,sd=5), "tired")
+na$plot(100,200)
+
+tibble(measure = c("Mean","Variance","Mutual Information"),
+hb = c(hb$theoreticalMean(),hb$theoreticalVariance(), hb$theoreticalMI()),
+k = c(k$theoreticalMean(),k$theoreticalVariance(),k$theoreticalMI()),
+na = c(na$theoreticalMean(),na$theoreticalVariance(),na$theoreticalMI()))
+
+testData = k$sample(1000) %>% mutate(test="k") %>% bind_rows(
+		hb$sample(500) %>% mutate(test="hb")) %>% bind_rows(
+		na$sample(100) %>% mutate(test="na")
+	) %>% rename(outcome=y, value=x)
+testData = testData[sample(nrow(testData)),]
+```
+
+```{r}
+testData %>% group_by(test) %>% calculateDiscreteContinuousMI(vars(outcome), value, method = "KWindow")
+testData %>% group_by(test) %>% summariseObservations(vars(outcome))
+missingTest = testData %>% group_by(test) %>% expectedObservations(vars(outcome),600)
+devtools::load_all("~/Git/tidy-info-stats/")
+testData %>% group_by(test) %>% calculateDiscreteContinuousUnlabelledMI(vars(outcome), value, expectedCount=missingTest)
+```
+
+```{r}
+devtools::load_all("~/Git/tidy-info-stats/")
+#debug(calculateDiscreteContinuousUnlabelledMI)
+missingTest2 = testData %>% 
+		group_by(test) %>% 
+		expectFixedSamples(vars(outcome),600)
+
+testData %>% group_by(test) %>% adjustDiscreteMIForAbsentValues(
+		vars(outcome), 
+		calculateDiscreteContinuousMI, 
+		continuousVar = value, 
+		sampleCountDf=missingTest2)
+
+testData %>% group_by(test) %>% calculateDiscreteAbsentValuesMI(vars(outcome), sampleCount=600)
+testData %>% group_by(test) %>% calculateDiscretePresentValuesMI(vars(outcome), sampleCount=600)
+```

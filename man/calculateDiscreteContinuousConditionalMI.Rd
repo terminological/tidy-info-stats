@@ -19,7 +19,7 @@ calculateDiscreteContinuousConditionalMI(
 
 \item{continuousVar}{- the column of the continuous value (Y)}
 
-\item{method}{- the method employed - valid options are "KWindow","KNN"}
+\item{method}{- the method employed - valid options are "KWindow","KNN","Kernel","Quantile"}
 
 \item{...}{- the other parameters are passed onto the implementations}
 }

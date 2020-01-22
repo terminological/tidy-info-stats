@@ -19,7 +19,7 @@ calculateDiscreteContinuousMI(
 
 \item{continuousVar}{- the column of the continuous value (Y)}
 
-\item{method}{- the method employed - valid options are "KWindow","KNN","SGolay","DiscreteByRank","DiscreteByValue","Compression"}
+\item{method}{- the method employed - valid options are "KWindow","KNN","SGolay","DiscreteByRank","DiscreteByValue","Compression","Entropy"}
 
 \item{...}{- the other parameters are passed onto the implementations}
 }

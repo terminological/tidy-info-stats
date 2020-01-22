@@ -12,30 +12,146 @@ calculateDiscreteBinaryMI =  function(df, discreteVars, countVar=NULL, method="G
   countVar = tryCatch(ensym(countVar),error = function(e) NULL)
   grps = df %>% groups()
   
-  return(calculateEntropy(df, discreteVars, countVar=!!countVar, method = method,...))
+  return(calculateDiscreteEntropy(df, discreteVars, countVar=!!countVar, method = method,...))
   
   # https://en.wikipedia.org/wiki/Pointwise_mutual_information
   # https://en.wikipedia.org/wiki/Information_content
   
 }
 
-
-#' calculate self information when an observation has a discrete value (X).
+#' calculate mutual information between a categorical value (X) and its absence in a data set.
 #' 
-#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable - the grouping may be w.g. a test or concept. 
-#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
-#' @param countVar - optional the column of the count variable - how often does the event happen? If missing then this will be the assumed to be individual observations. In this case the df is a contingency table
-#' @param method - the method employed - valid options are "Histogram", "Grassberger"
-#' @param ... - the other parameters are passed onto the implementations
-#' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' This calculates the mutual information of a feature not being present in all samples
+#' 
+#' This is relevant for sparse data sets with many features such as NLP terms, where a term as a
+#' feture may not be present in a given document, and this absense may be assymetrically distributed between
+#' different classes. 
+#' 
+#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome
+#' @param sampleVars - the column(s) of the sample identifier
+#' @param sampleCount - an integer containing the count of all samples per outcome (discreteVar)
+#' @param sampleCountDf - a dataframe containing columns for grouping, and discreteVars, N and N_x columns with counts
+#' see expectSamplesByOutcome(...)
+#' @return a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @import dplyr
 #' @export
-calculateSelfInformation =  function(df, discreteVars, countVar=NULL, method="Histogram", ...) {
-  switch (method,
-          Histogram = calculateSelfInformation_Histogram(df, groupVars, countVar={{countVar}}, ...),
-          Grassberger = calculateSelfInformation_Grassberger(df, groupVars, countVar={{countVar}}, ...),
-          {stop(paste0(method," not a valid option"))}
-  )
+calculateDiscreteAbsentValuesMI = function(df, discreteVars, sampleVars=NULL, sampleCount=NULL, sampleCountDf=NULL, ...) {
+	if (identical(sampleVars,NULL) && identical(sampleCount,NULL) && identical(sampleCountDf,NULL)) stop("one of sampleVars, sampleCount, or sampleCountDf must be specified")
+	grps = df %>% groups()
+	outerJoinCols = df %>% joinList(discreteVars)
+	innerJoinCols = df %>% joinList(defaultJoin = "tmp_join")
+	if (identical(sampleCountDf,NULL)) {
+		if (!identical(sampleVars,NULL)) {
+			sampleCountDf = df %>% expectOnePerSample(discreteVars, sampleVars)
+		} else {
+			sampleCountDf = df %>% expectFixedSamples(discreteVars, sampleCount)
+		}	
+	}
+	
+	observedCount = df %>% groupwiseCount(discreteVars,summarise=TRUE) %>% rename(N_obs=N, N_x_obs=N_x)
+	
+	tmp = sampleCountDf %>% mutate(tmp_join=1L) %>%
+			rename(N_exp = N, N_x_exp = N_x) %>% 
+			left_join(
+					observedCount %>% select(-N_obs), by=outerJoinCols
+			) %>% mutate(
+					N_x_obs = ifelse(is.na(N_x_obs),0,N_x_obs)
+			) %>% left_join(
+					# this is needed to fill N_obs for missing columns
+					observedCount %>% select(!!!grps,N_obs) %>% distinct() %>% mutate(tmp_join=1L), by=innerJoinCols
+			) %>% mutate(
+					N_obs = ifelse(is.na(N_obs),0,N_obs)
+			)
+	
+	
+	# this calculation uses the for of I(X,Y) given here:
+	# https://en.wikipedia.org/w/index.php?title=Mutual_information&action=edit&section=9
+	# substituting Abs for X and our X for Y - = p_X_given_Y=y becomes p_abs_given_X=x 
+	tmp2 = tmp %>% mutate(
+			# we need to know I_given_unlabelled_and_x
+			p_abs = as.double(N_exp-N_obs)/N_exp,
+			p_abs_given_x = as.double(N_x_exp-N_x_obs)/N_x_exp,
+			p_pres = 1-p_abs,
+			I_abs_given_x = ifelse(p_abs_given_x <= 0, 0 ,p_abs_given_x*log(p_abs_given_x/p_abs))
+	)
+	#tmp2: I_given_abs_and_x is pointwise mut info? or I(Abs|X=x)
+	#tmp2 could be maybe combined with pointwise I(Y|X=x) to get a measure of how much
+	#information Y or its absence infers about X=x 
+	
+	tmp3 = tmp2 %>% group_by(!!!grps,N_exp,N_obs) %>% summarise(
+			# combine labelled and unlabelled I (independent)
+			I = sum(p_abs*I_abs_given_x),
+			I_sd = as.double(NA)
+	) %>% mutate(method = "Absent values") 
+	
+	return(tmp3)
 }
   
-  
-  
+
+#' calculate mutual information between a categorical value (X) and its presence in a data set.
+#' 
+#' This calculates the mutual information of a feature not being present in all samples
+#' 
+#' This is relevant for sparse data sets with many features such as NLP terms, where a term as a
+#' feature is only flagged as present in the samples. 
+#' 
+#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome
+#' @param sampleVars - the column(s) of the sample identifier
+#' @param sampleCount - an integer containing the count of all samples per outcome (discreteVar)
+#' @param sampleCountDf - a dataframe containing columns for grouping, and discreteVars, N and N_x columns with counts
+#' see expectSamplesByOutcome(...)
+#' @return a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @import dplyr
+#' @export
+calculateDiscretePresentValuesMI = function(df, discreteVars, sampleVars=NULL, sampleCount=NULL, sampleCountDf=NULL, ...) {
+	if (identical(sampleVars,NULL) && identical(sampleCount,NULL) && identical(sampleCountDf,NULL)) stop("one of sampleVars, sampleCount, or sampleCountDf must be specified")
+	grps = df %>% groups()
+	outerJoinCols = df %>% joinList(discreteVars)
+	innerJoinCols = df %>% joinList(defaultJoin = "tmp_join")
+	if (identical(sampleCountDf,NULL)) {
+		if (!identical(sampleVars,NULL)) {
+			sampleCountDf = df %>% expectOnePerSample(discreteVars, sampleVars)
+		} else {
+			sampleCountDf = df %>% expectFixedSamples(discreteVars, sampleCount)
+		}	
+	}
+	
+	observedCount = df %>% groupwiseCount(discreteVars,summarise=TRUE) %>% rename(N_obs=N, N_x_obs=N_x)
+	
+	tmp = sampleCountDf %>% mutate(tmp_join=1L) %>%
+			rename(N_exp = N, N_x_exp = N_x) %>% 
+			left_join(
+					observedCount %>% select(-N_obs), by=outerJoinCols
+			) %>% mutate(
+					N_x_obs = ifelse(is.na(N_x_obs),0,N_x_obs)
+			) %>% left_join(
+					# this is needed to fill N_obs for missing columns
+					observedCount %>% select(!!!grps,N_obs) %>% distinct() %>% mutate(tmp_join=1L), by=innerJoinCols
+			) %>% mutate(
+					N_obs = ifelse(is.na(N_obs),0,N_obs)
+			)
+	
+	
+	# this calculation uses the for of I(X,Y) given here:
+	# https://en.wikipedia.org/w/index.php?title=Mutual_information&action=edit&section=9
+	# substituting Pres for X and our X for Y - = p_X_given_Y=y becomes p_abs_given_X=x 
+	tmp2 = tmp %>% mutate(
+			# we need to know I_given_unlabelled_and_x
+			p_pres = as.double(N_obs)/N_exp,
+			p_pres_given_x = as.double(N_x_obs)/N_x_exp,
+			I_pres_given_x = ifelse(p_pres_given_x <= 0, 0 ,p_pres_given_x*log(p_pres_given_x/p_pres))
+	)
+	#tmp2: I_given_abs_and_x is pointwise mut info? or I(Abs|X=x)
+	#tmp2 could be maybe combined with pointwise I(Y|X=x) to get a measure of how much
+	#information Y or its absence infers about X=x 
+	
+	tmp3 = tmp2 %>% group_by(!!!grps,N_exp,N_obs) %>% summarise(
+			# combine labelled and unlabelled I (independent)
+			I = sum(p_pres*I_pres_given_x),
+			I_sd = as.double(NA)
+	) %>% mutate(method = "Present values") 
+	
+	return(tmp3)
+}

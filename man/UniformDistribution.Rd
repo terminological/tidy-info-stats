@@ -12,11 +12,21 @@ Get a uniform distribution wrapper
 \section{Super class}{
 \code{\link[tidyinfostats:Distribution]{tidyinfostats::Distribution}} -> \code{UniformDistribution}
 }
+\section{Public fields}{
+\if{html}{\out{<div class="r6-fields">}}
+\describe{
+\item{\code{min}}{the min}
+
+\item{\code{max}}{the max}
+}
+\if{html}{\out{</div>}}
+}
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-new}{\code{UniformDistribution$new()}}
 \item \href{#method-label}{\code{UniformDistribution$label()}}
+\item \href{#method-theoreticalEntropy}{\code{UniformDistribution$theoreticalEntropy()}}
 \item \href{#method-clone}{\code{UniformDistribution$clone()}}
 }
 }
@@ -30,7 +40,6 @@ Get a uniform distribution wrapper
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="plot">}\href{../../tidyinfostats/html/Distribution.html#method-plot}{\code{tidyinfostats::Distribution$plot()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="q">}\href{../../tidyinfostats/html/Distribution.html#method-q}{\code{tidyinfostats::Distribution$q()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="sample">}\href{../../tidyinfostats/html/Distribution.html#method-sample}{\code{tidyinfostats::Distribution$sample()}}\out{</span>}
-\item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="theoreticalEntropy">}\href{../../tidyinfostats/html/Distribution.html#method-theoreticalEntropy}{\code{tidyinfostats::Distribution$theoreticalEntropy()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="tidyinfostats" data-topic="Distribution" data-id="twoDp">}\href{../../tidyinfostats/html/Distribution.html#method-twoDp}{\code{tidyinfostats::Distribution$twoDp()}}\out{</span>}
 }
 \out{</details>}
@@ -61,6 +70,18 @@ get a label for this distribution
 \if{html}{\out{<div class="r">}}\preformatted{UniformDistribution$label()}\if{html}{\out{</div>}}
 }
 
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-theoreticalEntropy"></a>}}
+\subsection{Method \code{theoreticalEntropy()}}{
+calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{UniformDistribution$theoreticalEntropy()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+a value
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-clone"></a>}}
