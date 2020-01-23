@@ -1,4 +1,4 @@
-#' calculate entropy of a sequence of 
+#' discretise a continuous variable using a user supplied strategy
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
 #' @param continuousVar - the columns that define the discrete subgroups of the data.
@@ -36,7 +36,7 @@ logNormalCentiles = function(bins) {
       # sd = sqrt(exp(2*μ + σ^2)*(exp(σ^2) - 1))
       # use DistributionFunctions
       return(tibble(
-        cut = LogNormalDistribution$new(mean=mean,var=sqrt(sd))$q(seq(0,1,length.out = bins+1))[2:bins]
+        cut = LogNormalDistribution$new(mean=mean,var=sd^2)$q(seq(0,1,length.out = bins+1))[2:bins]
       ))
     }
   )
@@ -191,9 +191,10 @@ cutsDfFromVector = function(df, cuts) {
 #' @param lowerBounded - default FALSE, should the lower or upper values be included in the group
 #' @param factorise - convert discrete values into an ordered factor (alternative is a character string). This is only useful if you have a single set of cuts for all groups.
 #' @param noUnicode - by default unicode characters are not used for the label if the target is a dbplyr table
+#' @param format  -  a sprintf formatting string with one % in it. Sensible values are "%.4g" for 4 sig figs, or "%.2f" for fixed 2 dp. see ?sprintf
 #' @return a dataframe containing the discreteOutputVar column
 #' @export
-discretise_Manual = function(df, continuousVar, discreteOutputVar, cutsDf, lowerBounded = FALSE, factorise = FALSE, noUnicode = ("tbl_sql" %in% class(df)), ...) {
+discretise_Manual = function(df, continuousVar, discreteOutputVar, cutsDf, lowerBounded = FALSE, factorise = FALSE, noUnicode = ("tbl_sql" %in% class(df)), format="%.4g", ...) {
   discreteOutputVar = ensym(discreteOutputVar)
   continuousVar = ensym(continuousVar)
   
@@ -217,16 +218,16 @@ discretise_Manual = function(df, continuousVar, discreteOutputVar, cutsDf, lower
     # cuts is an R dataframe but it is going to be used in an sql database
     # no unicode label for database
     cutsDf = cutsDf %>% mutate(!!discreteOutputVar := 
-         ifelse(is.na(tmp_lower),paste0(ifelse(lowerBounded,"<","<="),tmp_upper),
-                ifelse(is.na(tmp_upper),paste0(ifelse(lowerBounded,">=",">"),tmp_lower),
-                       paste0(tmp_lower,"-",tmp_upper)
+         ifelse(is.na(tmp_lower),paste0(ifelse(lowerBounded,"<","<="),sprintf(format,tmp_upper)),
+                ifelse(is.na(tmp_upper),paste0(ifelse(lowerBounded,">=",">"),sprintf(format,tmp_lower)),
+                       paste0(sprintf(format,tmp_lower),"-",sprintf(format,tmp_upper))
                 )))
   } else {
     # label is unicode
     cutsDf = cutsDf %>% mutate(!!discreteOutputVar := 
-           ifelse(is.na(tmp_lower),paste0(ifelse(lowerBounded,"<","\u2264"),tmp_upper),
-                ifelse(is.na(tmp_upper),paste0(ifelse(lowerBounded,"\u2265",">"),tmp_lower),
-                       paste0(tmp_lower,"\u2013",tmp_upper)
+           ifelse(is.na(tmp_lower),paste0(ifelse(lowerBounded,"<","\u2264"),sprintf(format,tmp_upper)),
+                ifelse(is.na(tmp_upper),paste0(ifelse(lowerBounded,"\u2265",">"),sprintf(format,tmp_lower)),
+                       paste0(sprintf(format,tmp_lower),"\u2013",sprintf(format,tmp_upper))
                 )))
   }
   

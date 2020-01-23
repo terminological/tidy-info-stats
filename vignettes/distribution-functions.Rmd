@@ -51,9 +51,13 @@ Log normal plots are specified using a mode and a measure of variance
 $$\mathit{mode}={{e}^{\mu-{{\sigma}^{2}}}} \\
 \mathit{var}={{e}^{2\cdot \mu-{{\sigma}^{2}}}}\cdot \left( {{e}^{{{\sigma}^{2}}}}-1\right) $$
 
+
 This can be rearranged to the following:
 
 $$\mathit{var}+{{e}^{\mu}}\cdot \mathit{mode}-{{e}^{2\cdot \mu}}=0$$
+
+$$ {e}^\mu = \frac{mode \pm \sqrt{mode^2 + 4var}}{2} $$
+$$ \mu = log \left( \frac{mode \pm \sqrt{mode^2 + 4var}}{2} \right) $$
 
 Which can be numerically solved for $\mu$ given the mode and variance, leaving the substitution for $\sigma$
 $$\sigma=\sqrt{\mu-\mathrm{log}\left( \mathit{mode}\right) }$$
@@ -62,14 +66,14 @@ Which allows us to specify a log normal distribution with meaningful shape param
 
 ```{r}
 devtools::load_all("..")
-n3 = LogNormalDistribution$new(mode=5,var=3)
+n3 = LogNormalDistribution$new(mode=6,sd=2)
 n3$plot(0,20)
 n3$q(seq(0,1,length.out = 5))
 ```
 
 ```{r}
 devtools::load_all("..")
-n3 = LogNormalDistribution$new(mean=6,var=3)
+n3 = LogNormalDistribution$new(mean=6,sd=2)
 n3$plot(0,20)
 ```
 
@@ -127,4 +131,9 @@ This is possible with a random distribution selector which will randomly pick fr
 cd3 = ConditionalDistribution$new()
 cd3$withRandomDistributions(3)
 cd3$plot(-5,5)
+```
+
+```{r}
+devtools::load_all("..")
+bloodResultsSimulation(100) %>% arrange(sample)
 ```

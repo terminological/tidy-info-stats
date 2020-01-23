@@ -8,8 +8,8 @@
 #' @param df a dataframe containing 2 columns defining class of event X and class of event Y and either one row per event, 
 #' or a count of observations, for each class combination. 
 #' df may also be grouped and in which case the grouping is preserved in the result.
-#' @param groupXVars the datatable column(s) defining the class of event X quoted by vars(...) e.g. outcomes
-#' @param groupYVars the datatable column(s) defining the class of event Y quoted by vars(...) e.g. predictions
+#' @param groupXVars the datatable column(s) defining the class of event X quoted by vars(...)
+#' @param groupYVars the datatable column(s) defining the class of event Y quoted by vars(...)
 #' @param countVar the datatable column containing the observed frequency combination of event XY. If this is missing the row count will be used instead
 #' @return A new datatable with all possible combinations of X&Y and the probabilities associated with each outcome (i.e. an N(X) by N(Y) set of binary confusion matrices)
 #' @import dplyr

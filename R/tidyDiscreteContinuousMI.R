@@ -1,28 +1,34 @@
 #' calculate mutual information between a categorical value (X) and a continuous value (Y)
 #' 
+#' This is specifically designed to supprt tidy data where there are many features, with associated values and outcomes in different columns of a dataframe or database table
+#'
+#' N.B. this result is the mutual information between feature value and outcome GIVEN that the feature is present. It does not account for missing values.
+#' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
-#' @param method - the method employed - valid options are "KWindow","KNN","SGolay","Kernel","DiscreteByRank","DiscreteByValue","Entropy"
+#' @param method - the method employed - valid options are "KWindow","KNN","Discretise","Grassberger","Compression","Entropy","Quantile","PDF","SGolay","Kernel"
 #' @param ... - the other parameters are passed onto the implementations
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
+#' @example 
+#' observations %>% group_by(feature) %>% calculateDiscreteContinuousMI(vars(outcome), value)
 calculateDiscreteContinuousMI = function(df, discreteVars, continuousVar, method="KWindow", ...) {
 	switch (method,
 			KWindow = calculateDiscreteContinuousMI_KWindow(df, discreteVars, {{continuousVar}}, ...),
 			KNN = calculateDiscreteContinuousMI_KNN(df, discreteVars, {{continuousVar}}, ...),
 			#Discretisation methods
 			Discretise = calculateDiscreteContinuousMI_Discretise(df, discreteVars, {{continuousVar}}, ...),
-			Grassberger = calculateDiscreteContinuousMI_Discretise(df, discreteVars, {{continuousVar}}, discreteMethod="Entropy", entropyMethod="Grassberger", ...),
-			Compression = calculateDiscreteContinuousMI_Discretise(df, discreteVars, {{continuousVar}}, binStrategy = linearBySize(slope=8,minBins=4,maxBins=256), discreteMethod="Entropy", entropyMethod="Compression", ...),
+			Grassberger = calculateDiscreteContinuousMI_Discretise(df, discreteVars, {{continuousVar}}, mutualInfoMethod="Entropy", entropyMethod="Grassberger", ...),
+			Compression = calculateDiscreteContinuousMI_Discretise(df, discreteVars, {{continuousVar}}, binStrategy = linearBySize(slope=8,minBins=4,maxBins=256), mutualInfoMethod="Entropy", entropyMethod="Compression", ...),
 			#Continuous Entropy methods
 			Entropy = calculateDiscreteContinuousMI_Entropy(df, discreteVars, {{continuousVar}}, ...),
 			Quantile = calculateDiscreteContinuousMI_Entropy(df, discreteVars, {{continuousVar}}, entropyMethod="Quantile",...),
 			#PDF methods
 			PDF = calculateDiscreteContinuousMI_Entropy(df, discreteVars, {{continuousVar}}, entropyMethod="PDF",...),
-			SGolay = calculateDiscreteContinuousMI_PDF(df, discreteVars, {{continuousVar}}, entropyMethod="PDF", probabilityMethod = "SGolay", ...),
-			Kernel = calculateDiscreteContinuousMI_PDF(df, discreteVars, {{continuousVar}}, entropyMethod="PDF", probabilityMethod = "Kernel", ...),
+			SGolay = calculateDiscreteContinuousMI_Entropy(df, discreteVars, {{continuousVar}}, entropyMethod="PDF", probabilityMethod = "SGolay", ...),
+			Kernel = calculateDiscreteContinuousMI_Entropy(df, discreteVars, {{continuousVar}}, entropyMethod="PDF", probabilityMethod = "Kernel", ...),
 			#PDF methods
 			PDF2 = calculateDiscreteContinuousMI_PDF(df, discreteVars, {{continuousVar}}, ...),
 			SGolay2 = calculateDiscreteContinuousMI_PDF(df, discreteVars, {{continuousVar}}, probabilityMethod = "SGolay", ...),
@@ -115,44 +121,18 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar
 	return(tmp5)
 }
 
-#' calculate mutual information between a categorical value (X) and a continuous value (Y) using a discretisation and discrete MNI estimators
+#' calculate mutual information between a categorical value (X) and a continuous value (Y) using a discretisation and calculateDiscreteDiscreteMI()
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
-#' @param bins - the number of bins
-#' @param binStrategy - the a function to genereate the bins on a group by group basis
-#' @param discreteMethod - What methd will be used to calculate the MI once discretised?
-#' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
-#' @import dplyr
-#' @export
-calculateDiscreteContinuousMI_DiscretiseByRank = function(df, discreteVars, continuousVar, bins=NA, binStrategy = linearBySize(slope=8,minBins=4,maxBins=100), discreteMethod="Histogram", ...) {
-	continuousVar = ensym(continuousVar)
-	grps = df %>% groups()
-	
-	tmp = df %>% rename(
-			y_continuous=!!continuousVar
-	)
-	
-	tmp = tmp %>% discretise_ByRank(y_continuous, y_discrete, bins, binStrategy) %>% compute()
-	return(tmp %>% calculateDiscreteDiscreteMI(discreteVars, vars(y_discrete), method=discreteMethod, ...) %>% 
-					collect() %>% mutate(method = paste0("DiscretiseByRank - ",method)))
-	
-}
-
-#' calculate mutual information between a categorical value (X) and a continuous value (Y) using a discretisation and infotheo
-#' 
-#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
-#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
-#' @param continuousVar - the column of the continuous value (Y)
-#' @param bins - the number of bins
-#' @param binStrategy - the a function to genereate the bins on a group by group basis
 #' @param discretiseMethod - What method will be used to discretise the data? (ByRank, ByValue, Manual)
 #' @param mutualInfoMethod - What method will be used to calculate the MI once discretised?
+#' @param ... - other parameters passed onto discretisation and mutual info methods
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousMI_Discretise = function(df, discreteVars, continuousVar, bins=NA, binStrategy = linearBySize(slope=8,minBins=4,maxBins=100), discretiseMethod="ByValue", mutualInfoMethod="Histogram", ...) {
+calculateDiscreteContinuousMI_Discretise = function(df, discreteVars, continuousVar, discretiseMethod="ByValue", mutualInfoMethod="Histogram", ...) {
 	continuousVar = ensym(continuousVar)
 	grps = df %>% groups()
 	
@@ -160,17 +140,11 @@ calculateDiscreteContinuousMI_Discretise = function(df, discreteVars, continuous
 			y_continuous=!!continuousVar
 	)
 	
-	tmp = tmp %>% discretise(y_continuous, y_discrete, method=discretiseMethod, bins, binStrategy) %>% compute()
+	tmp = tmp %>% discretise(y_continuous, y_discrete, method=discretiseMethod, ...) %>% compute()
 	
 	return(tmp %>% calculateDiscreteDiscreteMI(discreteVars, vars(y_discrete), method=mutualInfoMethod, ...) %>% 
 					collect() %>% mutate(method = paste0("Discretise - ",discretiseMethod," - ",mutualInfoMethod)))
 	
-	#return(
-	#  df %>% group_modify(function(d,...) {
-	#      d = d %>% mutate(x_discrete = as.integer(as.factor(!!discreteVar))) %>% select(x_discrete, y_continuous = !!continuousVar) %>% infotheo::discretize(n=bins)
-	#     return(data.frame(I=infotheo::mutinformation(d$x_discrete, d$y_continuous)))
-	# })
-	#)
 }
 
 

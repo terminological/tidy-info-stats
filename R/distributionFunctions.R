@@ -172,19 +172,17 @@ LogNormalDistribution = R6::R6Class("LogNormalDistribution", inherit=Distributio
 				#' @field sigma the sd of the normal distribuition
 				sigma=NULL,
 				#' @description plot this dictributions as pdf and cdf
-				#' @param mode the mode
-				#' @param var the variance
-				#' @param mean the desired mean
-				initialize = function(mode=runif(1,1,4),var=runif(1,0.5,5),mean=NA) {
+				#' @param mode the mode on a natural scale
+				#' @param sd the standard deviation on a natural scale
+				#' @param mean the mean on a natural scale
+				initialize = function(mode=runif(1,1,4),sd=runif(1,0.5,5),mean=NA) {
 					if (is.na(mean)) {
-				    fnMuFromMode = function(mu,mode,var) log((mode*var)/(exp(mu)-mode))+log(mode)-3*mu
-				      # exp(mu)*mode-exp(2*mu)+var^2
-				    self$mu = stats::uniroot(fnMuFromMode, interval=c(log(mode)+0.000001, 1000), mode=mode, var=var)$root
+					  self$mu = log( (mode + sqrt(mode^2 + 4 * sd^2))/2  )
 				    self$sigma = sqrt(self$mu-log(mode))
 					} else {
 					  #https://en.wikipedia.org/wiki/Log-normal_distribution LN7 -> LN2
-					  self$mu = log(mean/sqrt(1+var^2/mean^2))
-					  self$sigma = log(1+var^2/mean^2)
+					  self$mu = log(mean/sqrt(1+(sd^2)/(mean^2)))
+					  self$sigma = sqrt((log(mean)-self$mu)*2)
 					}
 					super$initialize(density=dlnorm,quantile=qlnorm,meanlog=self$mu,sdlog=self$sigma)
 				},
@@ -314,10 +312,10 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 				
 				#### Methods ----
 				#' @description adds in a Distribution with a class name and weight
+				#' @param distribution the pdf as an R6 Distribution object (Distribution$new(fn, fnParams...))
 				#' @param class the classname
 				#' @param weight the relative weight of this class
-				#' @param distribution the pdf as an R6 Distribution object (Distribution$new(fn, fnParams...))
-				withDistribution = function(weight,distribution,class=distribution$label()) {
+				withDistribution = function(distribution,class=distribution$label(),weight=1) {
 					self$classes = c(self$classes,class)
 					self$weights = c(self$weights,weight)
 					self$dists = c(self$dists,distribution)
@@ -329,9 +327,9 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 				withRandomDistributions = function(n=2) {
 					for (i in c(1:n)) {
 						switch ( sample(1:3, 1),
-								self$withDistribution(sample(1:5, 1), UniformDistribution$new()),
-								self$withDistribution(sample(1:5, 1), NormalDistribution$new()),
-								self$withDistribution(sample(1:5, 1), LogNormalDistribution$new())
+								self$withDistribution(UniformDistribution$new(),sample(1:5, 1)),
+								self$withDistribution(NormalDistribution$new(),sample(1:5, 1)),
+								self$withDistribution(LogNormalDistribution$new(),sample(1:5, 1))
 						)
 					}
 					invisible(self)
@@ -341,17 +339,31 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 				#' @param n the number of samples
 				#' @return a data frame of samples (labelled x) associated with classes (labelled "class")
 				sample = function(n=1000) {
-					counts = floor(self$weights*n/sum(self$weights))
-					while (sum(counts) < n) {
-					  i = sample(length(self$weights),size=1)
-					  counts[i] = counts[i]+1
-					}
-					out = NULL
-					for(i in c(1:length(self$classes))) {
-						out = out %>% rbind(self$dists[[i]]$sample(counts[[i]]) %>% mutate(y = self$classes[[i]]))
-					}
-					return(out)
+				  max = sum(self$weights)
+				  cutPoints = c(-Inf,cumsum(weights))
+				  distIndex = cut(runif(n,0,max),cutPoints,labels=FALSE,right=FALSE)
+				  classList = self$classes[distIndex]
+				  return(sampleByClass(classList))
 				},
+				
+				
+				#' @description produce a set of samples conforming to this distribution
+				#' @param classVector the number of samples
+				#' @return a data frame of samples (labelled x) associated with classes (labelled "class")
+				sampleByClass = function(classVector) {
+				  out = NULL
+				  id = 1
+				  for(class in classVector) {
+				    dist = self$dists[self$classes==class][[1]]
+				    out = out %>% bind_rows(tibble(
+				      i = id,
+				      x = dist$sample(1)$x,
+				      y = class))
+				    id = id+1
+				  }
+				  return(out)
+				},
+				
 				
 				#' @description get the pdf of these distributions as a dataframe
 				#' @param xmin - the minimum of the support
@@ -441,3 +453,71 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 				}
 		
 		))
+
+##### ---------------
+
+
+#' Get a named class distribution wrapper
+#'
+#' @keywords distributions
+#' @import dplyr
+#' @export
+MultivariableDistribution = R6::R6Class("MultivariableDistribution", public=list(
+  
+  #### Fields ----
+  #' @field classes the class names
+  features = c(),
+  #' @field classes the class names
+  classes = c(),
+  #' @field weights the relative weights of each distribution
+  weights = c(),
+  #' @field dists the distribution as Distribution objects
+  dists = c(),
+  
+  #### Methods ----
+  #' @description adds in a Distribution with a class name and weight
+  #' @param featureName the classname
+  #' @param distribution the pdf as an R6 ConditionalDistribution object (ConditionalDistribution$new(fn, fnParams...))
+  withConditionalDistribution = function(distribution,featureName) {
+    self$features = c(self$features,featureName)
+    self$dists = c(self$dists,distribution)
+    invisible(self)
+  },
+  
+  
+  withClassWeights = function(listWeights) {
+    self$classes = names(listWeights)
+    self$weights = unlist(listWeights, use.names = FALSE)  
+  },
+  
+  #' @description produce a set of samples conforming to these distributions
+  #' @param n the number of samples
+  #' @return a data frame of samples (labelled x) associated with classes (labelled "class")
+  sample = function(n=1000) {
+    max = sum(self$weights)
+    cutPoints = c(-Inf,cumsum(self$weights))
+    distIndex = cut(runif(n,0,max),cutPoints,labels=FALSE,right=FALSE)
+    classList = self$classes[distIndex]
+    out = NULL
+    for (i in c(1:length(self$dists))) {
+      dist = self$dists[[i]]
+      featureName = self$features[[i]]
+      tmp = dist$sampleByClass(classList)
+      tmp = tmp %>% mutate(feature=featureName)
+      out = out %>% bind_rows(tmp)
+    }
+    return(out %>% rename(outcome=y,value=x,sample=i))
+  }
+  
+  #' #' @description plot this distributions as pdf and cdf
+  #' #' @param xmin - the minimum of the support
+  #' #' @param xmax - the maximum of the support
+  #' #' @return a ggassemble plot object
+  #' plot = function(xmin,xmax) {
+  #'   out = self$getPdf(xmin=xmin,xmax=xmax)
+  #'   pdfPlot = ggplot(out,aes(x=x,y=pxy,ymax=CDFxy,colour=y,fill=y))+geom_line(aes(y=px),colour="grey50")+geom_line()+geom_area(alpha=0.3,position="identity")+ylab("p(x\u2229y)")+theme(legend.position = "bottom",legend.direction = "vertical")
+  #'   cdfPlot = ggplot(out,aes(x=x,y=CDFxy,colour=y))+geom_line(aes(y=CDFx),colour="grey50")+geom_line()+ylab("P(x\u2229y)")+theme(legend.position = "bottom",legend.direction = "vertical")
+  #'   return(patchwork::wrap_plots(pdfPlot,cdfPlot,nrow=1))
+  #' }
+  
+))
