@@ -1,0 +1,46 @@
+---
+title: "validation-tfidf-against-tidytext"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+library(dplyr)
+library(janeaustenr)
+library(tidytext)
+
+book_words <- austen_books() %>%
+  unnest_tokens(word, text) %>%
+  count(book, word, sort = TRUE)
+
+total_words <- book_words %>% 
+  group_by(book) %>% 
+  summarize(total = sum(n))
+
+book_words <- left_join(book_words, total_words)
+```
+Tidytext
+```{r}
+book_words_tfidf <- book_words %>%
+  bind_tf_idf(word, book, n)
+
+
+
+book_words_tfidf %>%
+  arrange(desc(tf_idf))
+```
+Tdiyinfostats
+```{r}
+devtools::load_all("~/Git/tidy-info-stats/")
+book_words %>% group_by(word) %>% calculateTfidf(vars(book), n) %>% arrange(desc(length_normalised_tfidf))
+```
+

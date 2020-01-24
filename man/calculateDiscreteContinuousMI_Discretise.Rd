@@ -2,14 +2,12 @@
 % Please edit documentation in R/tidyDiscreteContinuousMI.R
 \name{calculateDiscreteContinuousMI_Discretise}
 \alias{calculateDiscreteContinuousMI_Discretise}
-\title{calculate mutual information between a categorical value (X) and a continuous value (Y) using a discretisation and infotheo}
+\title{calculate mutual information between a categorical value (X) and a continuous value (Y) using a discretisation and calculateDiscreteDiscreteMI()}
 \usage{
 calculateDiscreteContinuousMI_Discretise(
   df,
   discreteVars,
   continuousVar,
-  bins = NA,
-  binStrategy = linearBySize(slope = 8, minBins = 4, maxBins = 100),
   discretiseMethod = "ByValue",
   mutualInfoMethod = "Histogram",
   ...
@@ -22,17 +20,15 @@ calculateDiscreteContinuousMI_Discretise(
 
 \item{continuousVar}{- the column of the continuous value (Y)}
 
-\item{bins}{- the number of bins}
-
-\item{binStrategy}{- the a function to genereate the bins on a group by group basis}
-
 \item{discretiseMethod}{- What method will be used to discretise the data? (ByRank, ByValue, Manual)}
 
 \item{mutualInfoMethod}{- What method will be used to calculate the MI once discretised?}
+
+\item{...}{- other parameters passed onto discretisation and mutual info methods}
 }
 \value{
 a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 }
 \description{
-calculate mutual information between a categorical value (X) and a continuous value (Y) using a discretisation and infotheo
+calculate mutual information between a categorical value (X) and a continuous value (Y) using a discretisation and calculateDiscreteDiscreteMI()
 }

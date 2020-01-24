@@ -2,16 +2,16 @@
 % Please edit documentation in R/dbplyHelper.R
 \name{labelGroup}
 \alias{labelGroup}
-\title{Sometime simpler to rename multiple grouping variables as one single variable which encodes all the possible combinations}
+\title{Renames groups extending accross multiple columns}
 \usage{
 labelGroup(df, groupVars, outputVar, summarise = FALSE)
 }
 \arguments{
 \item{df}{- a df which may be grouped}
 
-\item{groupVars}{- the grouping for which we want to create a label as a list of columns quoted by vars(...)}
+\item{groupVars}{- the columns(s) for which we want to create a label - as a list of columns quoted by vars(...)}
 
-\item{outputVar}{- the name of the target column for relabelling}
+\item{outputVar}{- the name of the target column for the new discrete variable}
 
 \item{summarise}{- return dataframe as-is with additional column (FALSE - the default) or return dataframe as group summary with only grouping info and output (TRUE)}
 }
@@ -19,5 +19,5 @@ labelGroup(df, groupVars, outputVar, summarise = FALSE)
 a dbplyr dataframe containing the grouped function
 }
 \description{
-Sometime simpler to rename multiple grouping variables as one single variable which encodes all the possible combinations
+Sometime simpler to rename multiple grouping columns as one single column which encodes all the possible combinations.
 }

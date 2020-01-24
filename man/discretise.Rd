@@ -2,7 +2,7 @@
 % Please edit documentation in R/tidyDiscretise.R
 \name{discretise}
 \alias{discretise}
-\title{calculate entropy of a sequence of}
+\title{discretise a continuous variable using a user supplied strategy}
 \usage{
 discretise(df, continuousVar, discreteOutputVar, method, ...)
 }
@@ -21,5 +21,5 @@ discretise(df, continuousVar, discreteOutputVar, method, ...)
 a single value for the entropy of the vector
 }
 \description{
-calculate entropy of a sequence of
+discretise a continuous variable using a user supplied strategy
 }

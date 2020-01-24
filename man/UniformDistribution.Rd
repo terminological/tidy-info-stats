@@ -47,7 +47,7 @@ Get a uniform distribution wrapper
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-new"></a>}}
 \subsection{Method \code{new()}}{
-Uniform distribution
+get a Uniform distribution wrapper
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{UniformDistribution$new(min = runif(1, -3, 3), max = min + runif(1, 0.5, 6))}\if{html}{\out{</div>}}
 }
@@ -74,7 +74,7 @@ get a label for this distribution
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-theoreticalEntropy"></a>}}
 \subsection{Method \code{theoreticalEntropy()}}{
-calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+calculates the theoretical entropy of the distribution
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{UniformDistribution$theoreticalEntropy()}\if{html}{\out{</div>}}
 }

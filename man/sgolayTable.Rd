@@ -2,7 +2,7 @@
 % Please edit documentation in R/dbplyHelper.R
 \name{sgolayTable}
 \alias{sgolayTable}
-\title{precalculates a sgolay filter}
+\title{Precalculates a sgolay filter (WIP)}
 \usage{
 sgolayTable(polynomialOrder, filterLength, derivative)
 }
@@ -14,5 +14,5 @@ sgolayTable(polynomialOrder, filterLength, derivative)
 \item{derivative}{- derivative order for the fitted function}
 }
 \description{
-precalculates a sgolay filter
+Precalculates a sgolay filter (WIP)
 }

@@ -47,7 +47,7 @@ Get a normal distribution wrapper
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-new"></a>}}
 \subsection{Method \code{new()}}{
-plot this dictributions as pdf and cdf
+get a new normal distribution parameterised by mean and sd
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{NormalDistribution$new(mean = runif(1, -2, 2), sd = runif(1, 0.5, 5))}\if{html}{\out{</div>}}
 }
@@ -62,7 +62,7 @@ plot this dictributions as pdf and cdf
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-a ggassemble plot object
+a NormalDistribution object
 }
 }
 \if{html}{\out{<hr>}}
@@ -80,7 +80,7 @@ a string
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-theoreticalEntropy"></a>}}
 \subsection{Method \code{theoreticalEntropy()}}{
-calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+calculates the theoretical entropy
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{NormalDistribution$theoreticalEntropy()}\if{html}{\out{</div>}}
 }

@@ -1,29 +1,44 @@
-#' Some databases don't support window functions over grouped data. This requires a workaround to group and summarise then join the data
+#' Execute a mutate function on grouped data in all databases
 #' 
-#' @param df - a df which may be grouped, in which case the value is interpreted as different types of continuous variable
+#' Some databases don't support window functions over grouped data. This requires a workaround to group and summarise then join the data.
+#' All database seem to support group_by(...) and then mutate(x = sum(...)) but not all will do group_by(...) and then mutate(x = mean(...)) for example.
+#' 
+#' Ranking functions all seem to work (including row_number)
+#' 
+#' * sum
+#' * row_number
+#' * rank
+#' * lead, lag
+#' 
+#' Aggregation functions are variably supported by the default mutate depending on the database
+#' 
+#' * mean
+#' * sd
+#' * min
+#' * max
+#' 
+#' @param df - a df which may be a dbplyr table
 #' @param ... - the contents of the mutuate function
 #' @return a dbplyr dataframe containing the grouped function
 #' @export
 groupMutate = function(df, ...) {
-  grps = df %>% groups()
-  if (length(grps)==0) {
-    grpsList = NULL
+  if ("tbl_sql" %in% class(df)) {
+    grps = df %>% groups()
+    if (length(grps == 0)) stop("groupMutate can only work on grouped data")
+    tmp_df <- df %>% group_by(!!!grps) %>% summarize(...)
+    return(df %>% left_join(tmp_df, by=sapply(grps,as.character)))
   } else {
-    grpsList = sapply(grps,as.character)
+    return(df %>% mutate(...))
   }
-  joinList = c(grpsList, "tmp_join")
-  
-  tmp_df <- df %>% group_by(!!!grps) %>% summarize(...) %>% ungroup() %>% mutate(tmp_join=1L)
-  
-  return(df %>% mutate(tmp_join=1L) %>% left_join(tmp_df, by=joinList) %>% select(-tmp_join))
 }
 
-
-#' Sometime simpler to rename multiple grouping variables as one single variable which encodes all the possible combinations
+#' Renames groups extending accross multiple columns
 #' 
+#' Sometime simpler to rename multiple grouping columns as one single column which encodes all the possible combinations.
+#'  
 #' @param df - a df which may be grouped
-#' @param groupVars - the grouping for which we want to create a label as a list of columns quoted by vars(...)
-#' @param outputVar - the name of the target column for relabelling
+#' @param groupVars - the columns(s) for which we want to create a label - as a list of columns quoted by vars(...)
+#' @param outputVar - the name of the target column for the new discrete variable
 #' @param summarise - return dataframe as-is with additional column (FALSE - the default) or return dataframe as group summary with only grouping info and output (TRUE)
 #' @return a dbplyr dataframe containing the grouped function
 #' @export
@@ -44,12 +59,17 @@ labelGroup = function(df, groupVars, outputVar, summarise=FALSE) {
 }
 
 
-#' A summary function to return a grouped df containing counts (N, N_x)
+#' Groupwise count
 #' 
-#' @param df - a df which may be grouped
-#' @param groupVars - the grouping for which we want to create a label as a list of columns quoted by vars(...)
-#' @param outputVar - the name of the target column for relabelling
-#' @return the grouped dataframe containing the df grouping columns, the groupVars columns, and a groupwise count of both levels of grouping labelled N and N_x and the groupwise p_x.
+#' Performs a 2 level count either preserving the structure of the dataframe or as a summary, returning
+#' the dataframe with total counts for the grouping (N) and for the subgroup defined by "groupVars" (N_x). This allows us to 
+#' generate a probability of the subgroup in the group.
+#' 
+#' @param df - a df which may be grouped. Grouping typically will be on a feature. N is the count of the items in the group
+#' @param groupVars - the grouping for which we want to create a label as a list of columns quoted by vars(...). This could be an outcome and 
+#' @param countVar - optional: the datatable column containing the observed frequency of the event X. If this is missing the row count will be used instead (i.e. assumes each row is an observation).
+#' @param summarise - return dataframe as-is with additional columns (N, N_x, p_x) (FALSE - the default) or return dataframe as group summary with only grouping info and output (TRUE)
+#' @return the grouped dataframe containing at a minumum, the df grouping columns, the groupVars columns, and a groupwise count of both levels of grouping labelled N and N_x and the groupwise p_x.
 #' @export
 groupwiseCount = function(df, groupVars, countVar=NULL, summarise=FALSE) {
   countVar = tryCatch(ensym(countVar),error = function(e) NULL)
@@ -77,9 +97,13 @@ groupwiseCount = function(df, groupVars, countVar=NULL, summarise=FALSE) {
 }
 
 
+#' Check table is from a database and enforce collection
+#' 
 #' Fail if table is a dbplyr table and the user does not request collection
+#' 
 #' @param df - a dataframe
 #' @param collect - boolean, should the table be collected if it is a dbplyr table.
+#' @return the dataframe, collected locally.
 #' @export
 collectDf = function(df, collect) {
   if ("tbl_sql" %in% class(df)) {
@@ -95,25 +119,33 @@ collectDf = function(df, collect) {
 #' a set of the first 50 digamma values
 digammaLookup = tibble(n = c(1:50), digamma = digamma(c(1:50)))
 
-#' Calculate an estimate of the digamma function value for dplyr and dbplyr dataframes. This will be done in SQL if possible.
+#' SQL Digamma function
+#' 
+#' Calculate an estimate of the digamma function value of integers for dplyr and dbplyr dataframes. This will be estimated in SQL if needed.
 #' 
 #' @param df - a dataframe
 #' @param inputVar - the reference to the column for which the digamma value will be calculated (this must be an integer)
 #' @param outputVar - the column that the digamma result will be written to
+#' @return the dataframe with an "outputVar" column containing the digamma value
 #' @export
 calculateDigamma = function(df, inputVar, outputVar) {
-  inputVar = ensym(inputVar)
-  outputVar = ensym(outputVar)
-  tmp = df %>% 
-    left_join(digammaLookup %>% rename(!!inputVar := n, !!outputVar := digamma), by=as.character(inputVar), copy=TRUE) %>%
-    mutate(!!outputVar := ifelse(is.na(!!outputVar), log(!!inputVar-1) + 1.0/(2*(!!inputVar-1) - 1.0/(12*(!!inputVar-1)^2) ), !!outputVar))
+  if ("tbl_sql" %in% class(df)) {
+    inputVar = ensym(inputVar)
+    outputVar = ensym(outputVar)
+    tmp = df %>% 
+      left_join(digammaLookup %>% rename(!!inputVar := n, !!outputVar := digamma), by=as.character(inputVar), copy=TRUE) %>%
+      mutate(!!outputVar := ifelse(is.na(!!outputVar), log(!!inputVar-1) + 1.0/(2*(!!inputVar-1) - 1.0/(12*(!!inputVar-1)^2) ), !!outputVar))
+    return(tmp)
+  } else {
+    return(df %>% mutate(!!outputVar := digamma(!!inputVar)))
+  }
 }
 
-#' Caculates a join list
+#' Calculates a join list
 #' 
 #' @param df - a df which may be grouped
 #' @param groupVars - the grouping for which we want to create a label as a list of columns quoted by vars(...)
-#' @param joinColName - if there is no grouping we need one column to join by.
+#' @param defaultJoin - if there is no grouping we need one column to join by.
 joinList = function(df,groupVars=NULL,defaultJoin=NULL) {
   grps = df %>% groups()
   joinList = c()
@@ -129,7 +161,7 @@ joinList = function(df,groupVars=NULL,defaultJoin=NULL) {
   return(joinList)
 }
 
-#' precalculates a sgolay filter
+#' Precalculates a sgolay filter (WIP)
 #'
 #' @param polynomialOrder - order of the poynomial to fit
 #' @param filterLength - length of the filter

@@ -4,14 +4,16 @@
 \alias{probabilitiesFromDiscrete}
 \title{Helper function to calculate probability from discrete data in a tidy friendly manner}
 \usage{
-probabilitiesFromDiscrete(df, groupVars, countVar = NULL)
+probabilitiesFromDiscrete(df, discreteVars, sampleVars, countVar = NULL)
 }
 \arguments{
 \item{df}{a dataframe containing columns defining class of observations of discrete variable X and either one row per observation, 
 or a count of observations for each of the observed values of X. 
-df may also be grouped and in which case the grouping is preserved in the result.}
+df may be grouped and in which case the grouping defines the top level - usually this is the feature under investigation}
 
-\item{groupVars}{the datatable column(s) defining the class of the observation quoted by vars(...)}
+\item{discreteVars}{the datatable column(s) defining the class of the discrete variable observed quoted by vars(...)}
+
+\item{sampleVars}{the datatable column(s) defining the id of each sample the observation quoted by vars(...)}
 
 \item{countVar}{the datatable column containing the observed frequency of the event X. If this is missing the row count will be used instead.}
 }

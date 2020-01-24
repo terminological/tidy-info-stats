@@ -2,7 +2,7 @@
 % Please edit documentation in R/dbplyHelper.R
 \name{joinList}
 \alias{joinList}
-\title{Caculates a join list}
+\title{Calculates a join list}
 \usage{
 joinList(df, groupVars = NULL, defaultJoin = NULL)
 }
@@ -11,8 +11,8 @@ joinList(df, groupVars = NULL, defaultJoin = NULL)
 
 \item{groupVars}{- the grouping for which we want to create a label as a list of columns quoted by vars(...)}
 
-\item{joinColName}{- if there is no grouping we need one column to join by.}
+\item{defaultJoin}{- if there is no grouping we need one column to join by.}
 }
 \description{
-Caculates a join list
+Calculates a join list
 }

@@ -2,11 +2,14 @@
 % Please edit documentation in R/distributionFunctions.R
 \name{MirroredKumaraswamyDistribution}
 \alias{MirroredKumaraswamyDistribution}
-\title{Get a kumaraswamy distribution wrapper}
+\title{Get a reversed Kumaraswamy distribution wrapper}
 \description{
-Get a kumaraswamy distribution wrapper
+Get a reversed Kumaraswamy distribution wrapper
 
-Get a kumaraswamy distribution wrapper
+Get a reversed Kumaraswamy distribution wrapper
+}
+\details{
+This is a Kumaraswamy distrbution mirrored in the line x=0.5, with support from x=0..1
 }
 \keyword{distributions}
 \section{Super class}{

@@ -6,7 +6,7 @@
 \usage{
 calculateTfidf(
   groupedDf,
-  conceptIdVar,
+  sampleVars,
   countVar = NULL,
   idfDf = NULL,
   k1 = 1.2,
@@ -14,9 +14,9 @@ calculateTfidf(
 )
 }
 \arguments{
-\item{groupedDf}{a dataframe whose grouping defines the "document"}
+\item{groupedDf}{a dataframe whose grouping defines the "term"}
 
-\item{conceptIdVar}{a field that contains the unique id of a "term"}
+\item{sampleVars}{the column(s) that contains the unique id of a sample, i.e. traditionally a "document" but could be a patient. escaped by vars(...). This can include an outcome variable.}
 
 \item{countVar}{a field that contains a count. If this is given then it is assumed that the concept & document combinations are unique}
 

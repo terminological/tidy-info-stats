@@ -12,7 +12,7 @@
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-#' @example 
+#' @examples 
 #' observations %>% group_by(feature) %>% calculateDiscreteContinuousMI(vars(outcome), value)
 calculateDiscreteContinuousMI = function(df, discreteVars, continuousVar, method="KWindow", ...) {
 	switch (method,

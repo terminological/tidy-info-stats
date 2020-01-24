@@ -64,21 +64,26 @@ probabilitiesFromCooccurrence = function(df, groupXVars, groupYVars, countVar=NU
 #' 
 #' @param df a dataframe containing columns defining class of observations of discrete variable X and either one row per observation, 
 #' or a count of observations for each of the observed values of X. 
-#' df may also be grouped and in which case the grouping is preserved in the result.
-#' @param groupVars the datatable column(s) defining the class of the observation quoted by vars(...)
+#' df may be grouped and in which case the grouping defines the top level - usually this is the feature under investigation
+#' @param discreteVars the datatable column(s) defining the class of the discrete variable observed quoted by vars(...)
+#' @param sampleVars the datatable column(s) defining the id of each sample the observation quoted by vars(...)
 #' @param countVar the datatable column containing the observed frequency of the event X. If this is missing the row count will be used instead.
 #' @return A summary datatable with possible values of X and the total (N), the total count of that group (N_x) the probability (p_x), and self information (I_x) associated with the value of X
 #' @import dplyr
 #' @export
-probabilitiesFromDiscrete = function(df, groupVars, countVar=NULL) {
+probabilitiesFromDiscrete = function(df, discreteVars, sampleVars, countVar=NULL) {
   grps = df %>% groups()
+  countVar = tryCatch(ensym(countVar),error = function(e) NULL)
+  
+  #
   
   # groupwise count creates an N and N_x  column based on groupVars, and countVar
-  df = df %>% groupwiseCount(groupVars, countVar, summarise=TRUE) %>% mutate(
+  df = df %>% groupwiseCount(groupVars, !!countVar, summarise=TRUE) %>% mutate(
     p_x = N_x/N,
     I_x = -log(p_x) #I_x is self information
     # entropy of X as an empirical measure will be sum(p_x*I_x) - the average of self information
   )
+  return(df)
 }
 
 

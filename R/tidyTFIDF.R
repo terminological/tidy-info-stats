@@ -1,34 +1,41 @@
-#' Creates a table with baseline IDF stats for concepts given a set of documents
+#' Creates a table with baseline IDF stats 
 #' 
+#' This is a summarise operation. for concepts given a set of samples
 #' given a dataframe whose grouping defines the concept to calculate
 #' IDF stats for
 #' 
-#' @param groupedDf a dataframe whose grouping defines the "document"
-#' @param conceptIdVar a field that contains the unique id of a "term"
-#' @param countVar a field that contains a count. If this is given then it is assumed that the concept & document combinations are unique 
+#' @param groupedDf a dataframe whose grouping defines the "term" for which we calulate the IDF
+#' @param sampleVars the column(s) that contains the unique id of a sample, i.e. traditionally a "document" but could be a patient. escaped by vars(...)
+#' @param countVar (optional) a field that contains a count. If this is given then it is assumed that the concept & document combinations are unique 
+#' @param totalSamples if the data is incomplete (not every document has a concept in it then the expected number fo samples can be specified here)
 #' @return a data frame with idf stats for each concept in each group (i.e. document)
 #' @import dplyr
 #' @export
-calculateIdf = function(groupedDf, conceptIdVar, countVar=NULL,  totalDocuments=NA) {
+calculateIdf = function(groupedDf, sampleVars, countVar=NULL, totalSamples=NA) {
 	grps = groupedDf %>% groups()
-	if (length(grps) == 0) stop("dataframe must be grouped")
-	conceptIdVar = ensym(conceptIdVar)
+	if (length(grps) == 0) stop("dataframe must be grouped, grouping defines the term for which we are calculating IDF")
 	countVar = tryCatch(ensym(countVar),error = function(e) NULL)
 	
 	# nodes are the unique concepts accross all groups - these are counted to give us:
 	# count = number of occurrences in corpus
 	# documents = number of documents that each concept appears in (useful for idf)
+	
+	# f_t - is the number of instances of a given term in the corpus
+	# f_td - is the number of instances of a given term in a given document
+	# tmp = groupedDf %>% groupwiseCount(sampleVars, countVar, summarise=TRUE) %>% rename(f_t = N, f_td = N_x)
+	
+	# count here is number of instances of term (grps) in document (sampleVars)
 	if (identical(countVar,NULL)) {
-		tmp = groupedDf %>% group_by(!!!grps, !!conceptIdVar) %>% summarise(count = n())
+		tmp = groupedDf %>% group_by(!!!grps, !!!sampleVars) %>% summarise(count = n())
 	} else {
-		tmp = groupedDf %>% group_by(!!!grps, !!conceptIdVar) %>% summarise(count = sum(!!countVar, na.rm=TRUE))
+		tmp = groupedDf %>% group_by(!!!grps, !!!sampleVars) %>% summarise(count = sum(!!countVar, na.rm=TRUE))
 	}
 	
-	if (is.na(totalDocuments)) {
-		totalDocuments = groupedDf %>% ungroup() %>% select(!!!grps) %>% distinct() %>% count() %>% pull(n)
+	if (is.na(totalSamples)) {
+		totalSamples = groupedDf %>% ungroup() %>% select(!!!sampleVars) %>% distinct() %>% count() %>% pull(n)
 	}
 	
-	nodes = tmp %>% ungroup() %>% group_by(!!conceptIdVar) %>% #,isOrigin) %>% 
+	nodes = tmp %>% ungroup() %>% group_by(!!!grps) %>% #,isOrigin) %>% 
 			# f_t - is the number of instances of a given term in the corpus
 			# N_t - is number of documents containing given term in the corpus 
 			summarise(
@@ -41,8 +48,9 @@ calculateIdf = function(groupedDf, conceptIdVar, countVar=NULL,  totalDocuments=
 			mutate(
 					max_N_t = max(N_t, na.rm=TRUE),
 					max_f_t = max(f_t, na.rm=TRUE),
-					N = local(totalDocuments)
-			) %>% compute(unique_index=as.character(conceptIdVar))
+					N = local(totalSamples)
+			) 
+	    # %>% compute(unique_index=sapply(grps, as.character))
 	
 	return(nodes)
 }
@@ -52,8 +60,8 @@ calculateIdf = function(groupedDf, conceptIdVar, countVar=NULL,  totalDocuments=
 #' The grouped dataframe here acts as a "Document" from the perpective of the TFIDF calculation but might be a person
 #' TODO: fix methods of calculating tfidf
 #' 
-#' @param groupedDf a dataframe whose grouping defines the "document"
-#' @param conceptIdVar a field that contains the unique id of a "term"
+#' @param groupedDf a dataframe whose grouping defines the "term"
+#' @param sampleVars the column(s) that contains the unique id of a sample, i.e. traditionally a "document" but could be a patient. escaped by vars(...). This can include an outcome variable.
 #' @param countVar a field that contains a count. If this is given then it is assumed that the concept & document combinations are unique 
 #' @param idfDf an optional data frame containing idf information from this or another corpus
 #' @param k1 default 1.2 - okapi BM25 parameter
@@ -61,30 +69,19 @@ calculateIdf = function(groupedDf, conceptIdVar, countVar=NULL,  totalDocuments=
 #' @return a data frame with tfidf stats for each concept in each group (i.e. document)
 #' @import dplyr
 #' @export
-calculateTfidf = function(groupedDf, conceptIdVar, countVar=NULL, idfDf=NULL, k1 = 1.2, b = 0.95) {
+calculateTfidf = function(groupedDf, sampleVars, countVar=NULL, idfDf=NULL, k1 = 1.2, b = 0.95) {
 	
 	grps = groupedDf %>% groups()
-	if (length(grps) == 0) stop("dataframe must be grouped")
-	conceptIdVar = ensym(conceptIdVar)
+	if (length(grps) == 0) stop("dataframe must be grouped - grouping defines the terms")
 	countVar = tryCatch(ensym(countVar),error = function(e) NULL)
 	
-	grpsList = sapply(grps,as.character)
-	indexList = c(grpsList,as.character(conceptIdVar))
+	termsList = sapply(grps,as.character)
+	docsList = sapply(sampleVars,as_label)
+	joinList = df %>% joinList(sampleVars)
 	
-	# this currently works on the original grouping of the corpus
-	# If this includes a grouping for outcome (as initially intended)
-	# documents will get a different tfidf, then the outcome must be a super set
-	# e.g. group_by(outcome,document_id) must be the same as group_by(document_id)
-	
-	if(is.null(grps)) {
-		print("Original data had no grouping information to define 'document'")
-		return()
-	}
-	
-	totalDocuments = groupedDf %>% ungroup() %>% select(!!!grps) %>% distinct() %>% count() %>% pull(n)
-	if(totalDocuments == 1) {
-		print("Only one document in collection - tfidf is meaningless")
-		return()
+	totalSamples = groupedDf %>% ungroup() %>% select(!!!sampleVars) %>% distinct() %>% count() %>% pull(n)
+	if(totalSamples <= 1) {
+		stop("Only one document in collection - tfidf is meaningless")
 	}
 	
 	# get the count of codes/terms - n
@@ -95,19 +92,19 @@ calculateTfidf = function(groupedDf, conceptIdVar, countVar=NULL, idfDf=NULL, k1
 	if (identical(countVar,NULL)) {
 		
 		if (identical(idfDf,NULL)) {
-			idfDf = calculateIdf(groupedDf, !!conceptIdVar, totalDocuments=totalDocuments)
+			idfDf = calculateIdf(groupedDf, sampleVars, totalSamples=totalSamples)
 		}
-		groupedDf = groupedDf %>% group_by(!!!grps, !!conceptIdVar) %>% summarise(count = n())
+		groupedDf = groupedDf %>% group_by(!!!grps, !!!sampleVars) %>% summarise(count = n())
 		
 	} else {
 		
 		if (identical(idfDf,NULL)) {
-			idfDf = calculateIdf(groupedDf, !!conceptIdVar, !!countVar, totalDocuments=totalDocuments)
+			idfDf = calculateIdf(groupedDf, sampleVars, !!countVar, totalSamples=totalSamples)
 		}
-		groupedDf = groupedDf %>% group_by(!!!grps, !!conceptIdVar) %>% summarise(count = sum(!!countVar, na.rm=TRUE))
+		groupedDf = groupedDf %>% group_by(!!!grps, !!!sampleVars) %>% summarise(count = sum(!!countVar, na.rm=TRUE))
 	}
 	
-	# in groupedDf we are counting cooncepts / terms
+	# in groupedDf we are counting concepts / terms
 	# the tf statistic
 	
 	# Doucment level grouping
@@ -116,7 +113,7 @@ calculateTfidf = function(groupedDf, conceptIdVar, countVar=NULL, idfDf=NULL, k1
 	# f_d is the total n of codes in a given d
 	# max_f_d maximum number of terms in each document
 	# max_f_td greatest number of any term in a given document (also referred to a max_f_td)
-	groupedDf = groupedDf %>% ungroup() %>% group_by(!!!grps) %>% mutate(
+	groupedDf = groupedDf %>% ungroup() %>% group_by(!!!sampleVars) %>% mutate(
 			f_td = count,
 			f_d = sum(count, na.rm=TRUE),
 			max_f_d=max(f_d, na.rm=TRUE),
@@ -135,8 +132,8 @@ calculateTfidf = function(groupedDf, conceptIdVar, countVar=NULL, idfDf=NULL, k1
 	# TODO: split out idf generation so we can do for whole corpus
 	
 	tmp = groupedDf %>% left_join(
-					idfDf %>% select(!!conceptIdVar, f_t, N_t, max_N_t, max_f_t, N),
-					by=as.character(conceptIdVar)
+					idfDf %>% select(!!!grps, f_t, N_t, max_N_t, max_f_t, N),
+					by=termsList
 			) %>% mutate(
 					# TODO methods of TFIDF
 					length_normalised_tfidf = as.double(f_td) / f_d * log( as.double(N) / N_t),

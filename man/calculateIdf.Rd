@@ -2,21 +2,24 @@
 % Please edit documentation in R/tidyTFIDF.R
 \name{calculateIdf}
 \alias{calculateIdf}
-\title{Creates a table with baseline IDF stats for concepts given a set of documents}
+\title{Creates a table with baseline IDF stats}
 \usage{
-calculateIdf(groupedDf, conceptIdVar, countVar = NULL, totalDocuments = NA)
+calculateIdf(groupedDf, sampleVars, countVar = NULL, totalSamples = NA)
 }
 \arguments{
-\item{groupedDf}{a dataframe whose grouping defines the "document"}
+\item{groupedDf}{a dataframe whose grouping defines the "term" for which we calulate the IDF}
 
-\item{conceptIdVar}{a field that contains the unique id of a "term"}
+\item{sampleVars}{the column(s) that contains the unique id of a sample, i.e. traditionally a "document" but could be a patient. escaped by vars(...)}
 
-\item{countVar}{a field that contains a count. If this is given then it is assumed that the concept & document combinations are unique}
+\item{countVar}{(optional) a field that contains a count. If this is given then it is assumed that the concept & document combinations are unique}
+
+\item{totalSamples}{if the data is incomplete (not every document has a concept in it then the expected number fo samples can be specified here)}
 }
 \value{
 a data frame with idf stats for each concept in each group (i.e. document)
 }
 \description{
+This is a summarise operation. for concepts given a set of samples
 given a dataframe whose grouping defines the concept to calculate
 IDF stats for
 }

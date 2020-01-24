@@ -2,12 +2,12 @@
 % Please edit documentation in R/dbplyHelper.R
 \name{groupMutate}
 \alias{groupMutate}
-\title{Some databases don't support window functions over grouped data. This requires a workaround to group and summarise then join the data}
+\title{Execute a mutate function on grouped data in all databases}
 \usage{
 groupMutate(df, ...)
 }
 \arguments{
-\item{df}{- a df which may be grouped, in which case the value is interpreted as different types of continuous variable}
+\item{df}{- a df which may be a dbplyr table}
 
 \item{...}{- the contents of the mutuate function}
 }
@@ -15,5 +15,21 @@ groupMutate(df, ...)
 a dbplyr dataframe containing the grouped function
 }
 \description{
-Some databases don't support window functions over grouped data. This requires a workaround to group and summarise then join the data
+Some databases don't support window functions over grouped data. This requires a workaround to group and summarise then join the data.
+All database seem to support group_by(...) and then mutate(x = sum(...)) but not all will do group_by(...) and then mutate(x = mean(...)) for example.
+}
+\details{
+Ranking functions all seem to work (including row_number)
+
+* sum
+* row_number
+* rank
+* lead, lag
+
+Aggregation functions are variably supported by the default mutate depending on the database
+
+* mean
+* sd
+* min
+* max
 }

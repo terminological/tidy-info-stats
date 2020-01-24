@@ -2,7 +2,7 @@
 % Please edit documentation in R/dbplyHelper.R
 \name{calculateDigamma}
 \alias{calculateDigamma}
-\title{Calculate an estimate of the digamma function value for dplyr and dbplyr dataframes. This will be done in SQL if possible.}
+\title{SQL Digamma function}
 \usage{
 calculateDigamma(df, inputVar, outputVar)
 }
@@ -13,6 +13,9 @@ calculateDigamma(df, inputVar, outputVar)
 
 \item{outputVar}{- the column that the digamma result will be written to}
 }
+\value{
+the dataframe with an "outputVar" column containing the digamma value
+}
 \description{
-Calculate an estimate of the digamma function value for dplyr and dbplyr dataframes. This will be done in SQL if possible.
+Calculate an estimate of the digamma function value of integers for dplyr and dbplyr dataframes. This will be estimated in SQL if needed.
 }

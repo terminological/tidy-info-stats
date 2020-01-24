@@ -12,6 +12,7 @@ discretise_Manual(
   lowerBounded = FALSE,
   factorise = FALSE,
   noUnicode = ("tbl_sql" \%in\% class(df)),
+  format = "\%.4g",
   ...
 )
 }
@@ -29,6 +30,8 @@ discretise_Manual(
 \item{factorise}{- convert discrete values into an ordered factor (alternative is a character string). This is only useful if you have a single set of cuts for all groups.}
 
 \item{noUnicode}{- by default unicode characters are not used for the label if the target is a dbplyr table}
+
+\item{format}{-  a sprintf formatting string with one % in it. Sensible values are "%.4g" for 4 sig figs, or "%.2f" for fixed 2 dp. see ?sprintf}
 }
 \value{
 a dataframe containing the discreteOutputVar column

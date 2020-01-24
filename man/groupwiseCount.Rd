@@ -2,20 +2,24 @@
 % Please edit documentation in R/dbplyHelper.R
 \name{groupwiseCount}
 \alias{groupwiseCount}
-\title{A summary function to return a grouped df containing counts (N, N_x)}
+\title{Groupwise count}
 \usage{
 groupwiseCount(df, groupVars, countVar = NULL, summarise = FALSE)
 }
 \arguments{
-\item{df}{- a df which may be grouped}
+\item{df}{- a df which may be grouped. Grouping typically will be on a feature. N is the count of the items in the group}
 
-\item{groupVars}{- the grouping for which we want to create a label as a list of columns quoted by vars(...)}
+\item{groupVars}{- the grouping for which we want to create a label as a list of columns quoted by vars(...). This could be an outcome and}
 
-\item{outputVar}{- the name of the target column for relabelling}
+\item{countVar}{- optional: the datatable column containing the observed frequency of the event X. If this is missing the row count will be used instead (i.e. assumes each row is an observation).}
+
+\item{summarise}{- return dataframe as-is with additional columns (N, N_x, p_x) (FALSE - the default) or return dataframe as group summary with only grouping info and output (TRUE)}
 }
 \value{
-the grouped dataframe containing the df grouping columns, the groupVars columns, and a groupwise count of both levels of grouping labelled N and N_x and the groupwise p_x.
+the grouped dataframe containing at a minumum, the df grouping columns, the groupVars columns, and a groupwise count of both levels of grouping labelled N and N_x and the groupwise p_x.
 }
 \description{
-A summary function to return a grouped df containing counts (N, N_x)
+Performs a 2 level count either preserving the structure of the dataframe or as a summary, returning
+the dataframe with total counts for the grouping (N) and for the subgroup defined by "groupVars" (N_x). This allows us to 
+generate a probability of the subgroup in the group.
 }

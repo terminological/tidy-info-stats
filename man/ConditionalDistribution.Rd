@@ -2,11 +2,14 @@
 % Please edit documentation in R/distributionFunctions.R
 \name{ConditionalDistribution}
 \alias{ConditionalDistribution}
-\title{Get a named class distribution wrapper}
+\title{Combine continuous distributions}
 \description{
-Get a named class distribution wrapper
+Combine continuous distributions
 
-Get a named class distribution wrapper
+Combine continuous distributions
+}
+\details{
+Get a wrapper for multiple (independent) continuous distributions conditioned on a discrete variable
 }
 \keyword{distributions}
 \section{Public fields}{
@@ -26,6 +29,7 @@ Get a named class distribution wrapper
 \item \href{#method-withDistribution}{\code{ConditionalDistribution$withDistribution()}}
 \item \href{#method-withRandomDistributions}{\code{ConditionalDistribution$withRandomDistributions()}}
 \item \href{#method-sample}{\code{ConditionalDistribution$sample()}}
+\item \href{#method-sampleByClass}{\code{ConditionalDistribution$sampleByClass()}}
 \item \href{#method-getPdf}{\code{ConditionalDistribution$getPdf()}}
 \item \href{#method-plot}{\code{ConditionalDistribution$plot()}}
 \item \href{#method-theoreticalMI}{\code{ConditionalDistribution$theoreticalMI()}}
@@ -40,20 +44,20 @@ Get a named class distribution wrapper
 adds in a Distribution with a class name and weight
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ConditionalDistribution$withDistribution(
-  weight,
   distribution,
-  class = distribution$label()
+  class = distribution$label(),
+  weight = 1
 )}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{weight}}{the relative weight of this class}
-
 \item{\code{distribution}}{the pdf as an R6 Distribution object (Distribution$new(fn, fnParams...))}
 
 \item{\code{class}}{the classname}
+
+\item{\code{weight}}{the relative weight of this class}
 }
 \if{html}{\out{</div>}}
 }
@@ -61,7 +65,7 @@ adds in a Distribution with a class name and weight
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-withRandomDistributions"></a>}}
 \subsection{Method \code{withRandomDistributions()}}{
-adds a set of random distributions to the composite
+adds a set of random (uniform, normal, lognormal) distributions to the composite distribution with sensible (random) defaults
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ConditionalDistribution$withRandomDistributions(n = 2)}\if{html}{\out{</div>}}
 }
@@ -77,7 +81,7 @@ adds a set of random distributions to the composite
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sample"></a>}}
 \subsection{Method \code{sample()}}{
-produce a set of samples conforming to this distribution
+produce a set of samples conforming to this distribution, with random discrete value
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ConditionalDistribution$sample(n = 1000)}\if{html}{\out{</div>}}
 }
@@ -91,6 +95,25 @@ produce a set of samples conforming to this distribution
 }
 \subsection{Returns}{
 a data frame of samples (labelled x) associated with classes (labelled "class")
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-sampleByClass"></a>}}
+\subsection{Method \code{sampleByClass()}}{
+produce a set of samples conforming to this distribution with preset discrete value
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{ConditionalDistribution$sampleByClass(classVector)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{classVector}}{the number of samples}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+a data frame of samples with continuous values (labelled x) associated with discrete classes (labelled "y") and a sample id column (labelled i)
 }
 }
 \if{html}{\out{<hr>}}
@@ -140,7 +163,7 @@ a ggassemble plot object
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-theoreticalMI"></a>}}
 \subsection{Method \code{theoreticalMI()}}{
-generate the theoretical mutual information
+generate the theoretical mutual information for this set of distributions using numerical integration of the underlying functions
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ConditionalDistribution$theoreticalMI()}\if{html}{\out{</div>}}
 }

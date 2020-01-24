@@ -19,7 +19,7 @@ calculateDiscreteContinuousMI(
 
 \item{continuousVar}{- the column of the continuous value (Y)}
 
-\item{method}{- the method employed - valid options are "KWindow","KNN","SGolay","Kernel","DiscreteByRank","DiscreteByValue","Entropy"}
+\item{method}{- the method employed - valid options are "KWindow","KNN","Discretise","Grassberger","Compression","Entropy","Quantile","PDF","SGolay","Kernel"}
 
 \item{...}{- the other parameters are passed onto the implementations}
 }
@@ -27,5 +27,11 @@ calculateDiscreteContinuousMI(
 a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 }
 \description{
-calculate mutual information between a categorical value (X) and a continuous value (Y)
+This is specifically designed to supprt tidy data where there are many features, with associated values and outcomes in different columns of a dataframe or database table
+}
+\details{
+N.B. this result is the mutual information between feature value and outcome GIVEN that the feature is present. It does not account for missing values.
+}
+\examples{
+observations \%>\% group_by(feature) \%>\% calculateDiscreteContinuousMI(vars(outcome), value)
 }

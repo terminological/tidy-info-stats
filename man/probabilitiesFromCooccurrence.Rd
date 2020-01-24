@@ -11,9 +11,9 @@ probabilitiesFromCooccurrence(df, groupXVars, groupYVars, countVar = NULL)
 or a count of observations, for each class combination. 
 df may also be grouped and in which case the grouping is preserved in the result.}
 
-\item{groupXVars}{the datatable column(s) defining the class of event X quoted by vars(...) e.g. outcomes}
+\item{groupXVars}{the datatable column(s) defining the class of event X quoted by vars(...)}
 
-\item{groupYVars}{the datatable column(s) defining the class of event Y quoted by vars(...) e.g. predictions}
+\item{groupYVars}{the datatable column(s) defining the class of event Y quoted by vars(...)}
 
 \item{countVar}{the datatable column containing the observed frequency combination of event XY. If this is missing the row count will be used instead}
 }

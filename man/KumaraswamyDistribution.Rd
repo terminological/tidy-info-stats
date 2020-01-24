@@ -8,6 +8,9 @@ Get a kumaraswamy distribution wrapper
 
 Get a kumaraswamy distribution wrapper
 }
+\details{
+This is a Kumaraswamy distrbution with support from x=0..1
+}
 \keyword{distributions}
 \section{Super class}{
 \code{\link[tidyinfostats:Distribution]{tidyinfostats::Distribution}} -> \code{KumaraswamyDistribution}

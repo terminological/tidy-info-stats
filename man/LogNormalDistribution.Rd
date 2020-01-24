@@ -47,11 +47,11 @@ Get a log normal distribution wrapper
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-new"></a>}}
 \subsection{Method \code{new()}}{
-plot this dictributions as pdf and cdf
+get a LogNormal distribution based on tow paramteretisation options - mean and sd (on natural scale) or mode and sd (on natural scale)
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{LogNormalDistribution$new(
   mode = runif(1, 1, 4),
-  var = runif(1, 0.5, 5),
+  sd = runif(1, 0.5, 5),
   mean = NA
 )}\if{html}{\out{</div>}}
 }
@@ -59,11 +59,11 @@ plot this dictributions as pdf and cdf
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{mode}}{the mode}
+\item{\code{mode}}{the mode on a natural scale}
 
-\item{\code{var}}{the variance}
+\item{\code{sd}}{the standard deviation on a natural scale}
 
-\item{\code{mean}}{the desired mean}
+\item{\code{mean}}{the mean on a natural scale}
 }
 \if{html}{\out{</div>}}
 }
@@ -83,7 +83,7 @@ a string
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-theoreticalEntropy"></a>}}
 \subsection{Method \code{theoreticalEntropy()}}{
-calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+calculates the theoretical differential entropy
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{LogNormalDistribution$theoreticalEntropy()}\if{html}{\out{</div>}}
 }

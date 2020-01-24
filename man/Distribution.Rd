@@ -2,11 +2,15 @@
 % Please edit documentation in R/distributionFunctions.R
 \name{Distribution}
 \alias{Distribution}
-\title{Get a distribution wrapper}
+\title{Distribution class}
 \description{
-Get a distribution wrapper
+Distribution class
 
-Get a distribution wrapper
+Distribution class
+}
+\details{
+The distribution class wrapps PDF and Quatile functions from a number of distributions and provides some simple stats
+for those functions, including a sampling function
 }
 \keyword{distributions}
 \section{Public fields}{
@@ -40,7 +44,7 @@ Get a distribution wrapper
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-new"></a>}}
 \subsection{Method \code{new()}}{
-Sets up an omop database connection
+Creates a distribution
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Distribution$new(density, quantile, ...)}\if{html}{\out{</div>}}
 }
@@ -48,9 +52,9 @@ Sets up an omop database connection
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{density}}{a function that accepts at least an x value (e.g. dnorm)}
+\item{\code{density}}{a function that accepts at least a vector of x value (e.g. dnorm)}
 
-\item{\code{quantile}}{a function that accepts at least an y value (e.g. qnorm)}
+\item{\code{quantile}}{a function that accepts at least  a vector of p values (e.g. qnorm)}
 
 \item{\code{...}}{passed to pdfFunction and centileFunction}
 }
@@ -140,7 +144,7 @@ a dataframe
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-theoreticalEntropy"></a>}}
 \subsection{Method \code{theoreticalEntropy()}}{
-calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+calculates the integral of -p(x)*log(p(x)) from -Infinity to Infinity
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Distribution$theoreticalEntropy()}\if{html}{\out{</div>}}
 }

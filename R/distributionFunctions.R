@@ -1,4 +1,7 @@
-#' Get a distribution wrapper
+#' Distribution class
+#' 
+#' The distribution class wrapps PDF and Quatile functions from a number of distributions and provides some simple stats
+#' for those functions, including a sampling function
 #'
 #' @keywords distributions
 #' @import dplyr
@@ -15,9 +18,9 @@ Distribution = R6::R6Class("Distribution", public=list(
 				dots = NULL,
 				
 				#### Methods ----
-				#' @description Sets up an omop database connection
-				#' @param density a function that accepts at least an x value (e.g. dnorm)
-				#' @param quantile a function that accepts at least an y value (e.g. qnorm)
+				#' @description Creates a distribution
+				#' @param density a function that accepts at least a vector of x value (e.g. dnorm)
+				#' @param quantile a function that accepts at least  a vector of p values (e.g. qnorm)
 				#' @param ... passed to pdfFunction and centileFunction
 				initialize = function(density, quantile, ...) {
 					self$dots = rlang::list2(...)
@@ -74,7 +77,7 @@ Distribution = R6::R6Class("Distribution", public=list(
 					return(df)
 				},
 				
-				#' @description calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+				#' @description calculates the integral of -p(x)*log(p(x)) from -Infinity to Infinity
 				#' @return a value
 				theoreticalEntropy = function() {
 				  fn = function(x) ifelse(self$p(x)==0,0,-self$p(x)*log(self$p(x)))
@@ -139,10 +142,10 @@ NormalDistribution = R6::R6Class("NormalDistribution", inherit=Distribution, pub
 				#' @field sigma the sigma value for the distribution 
 				sigma=NULL,
 				
-				#' @description plot this dictributions as pdf and cdf
+				#' @description get a new normal distribution parameterised by mean and sd
 				#' @param mean the mean
 				#' @param sd the sd
-				#' @return a ggassemble plot object
+				#' @return a NormalDistribution object
 				initialize = function(mean=runif(1,-2,2),sd=runif(1,0.5,5)) {
 					self$mu = mean
 					self$sigma = sd
@@ -154,7 +157,7 @@ NormalDistribution = R6::R6Class("NormalDistribution", inherit=Distribution, pub
 				label = function() {
 					return(paste0("Norm: \U003BC=",self$twoDp(self$mu),"; \u03C3=",self$twoDp(self$sigma)))
 				},
-				#' @description calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+				#' @description calculates the theoretical entropy 
 				#' @return a value
 				theoreticalEntropy = function() {
 				  log(self$sigma*sqrt(2*pi*exp(1)))
@@ -171,7 +174,7 @@ LogNormalDistribution = R6::R6Class("LogNormalDistribution", inherit=Distributio
 				mu=NULL,
 				#' @field sigma the sd of the normal distribuition
 				sigma=NULL,
-				#' @description plot this dictributions as pdf and cdf
+				#' @description get a LogNormal distribution based on tow paramteretisation options - mean and sd (on natural scale) or mode and sd (on natural scale)
 				#' @param mode the mode on a natural scale
 				#' @param sd the standard deviation on a natural scale
 				#' @param mean the mean on a natural scale
@@ -191,7 +194,7 @@ LogNormalDistribution = R6::R6Class("LogNormalDistribution", inherit=Distributio
 				label = function() {
 					return(paste0("LogNorm: \U003BC=",self$twoDp(self$mu),"; \u03C3=",self$twoDp(self$sigma)))
 				},
-				#' @description calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+				#' @description calculates the theoretical differential entropy
 				#' @return a value
 				theoreticalEntropy = function() {
 				  self$mu+0.5*log(2*pi*exp(1)*self$sigma^2)
@@ -209,7 +212,7 @@ UniformDistribution = R6::R6Class("UniformDistribution", inherit=Distribution, p
         min=NULL,
         #' @field max the max
         max=NULL,
-				#' @description Uniform distribution
+				#' @description get a Uniform distribution wrapper
 				#' @param min the min value of the uniform distribution
 				#' @param max the max value of the uniform distribution
 				initialize = function(min=runif(1,-3,3),max=min+runif(1,0.5,6)) {
@@ -222,14 +225,16 @@ UniformDistribution = R6::R6Class("UniformDistribution", inherit=Distribution, p
 				label = function() {
 				  return(paste0("Unif: ",paste(paste0(names(self$dots),"=",self$twoDp(self$dots)),collapse="; ")))
 				},
-				#' @description calculates the integral of -p(x)*log(p(x)) from -Infinity to infinity
+				#' @description calculates the theoretical entropy of the distribution
 				#' @return a value
 				theoreticalEntropy = function() {
 				  log(self$max-self$min)
 				}
 		))
 
-#' Get a kumaraswamy distribution wrapper
+#' Get a reversed Kumaraswamy distribution wrapper 
+#' 
+#' This is a Kumaraswamy distrbution mirrored in the line x=0.5, with support from x=0..1
 #'
 #' @keywords distributions
 #' @import dplyr
@@ -261,6 +266,8 @@ MirroredKumaraswamyDistribution = R6::R6Class("MirroredKumaraswamyDistribution",
 ))
 
 #' Get a kumaraswamy distribution wrapper
+#'
+#' This is a Kumaraswamy distrbution with support from x=0..1
 #'
 #' @keywords distributions
 #' @import dplyr
@@ -295,7 +302,9 @@ KumaraswamyDistribution = R6::R6Class("KumaraswamyDistribution", inherit=Distrib
 ##### ---------------
 
 
-#' Get a named class distribution wrapper
+#' Combine continuous distributions
+#' 
+#' Get a wrapper for multiple (independent) continuous distributions conditioned on a discrete variable
 #'
 #' @keywords distributions
 #' @import dplyr
@@ -322,7 +331,7 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 					invisible(self)
 				},
 				
-				#' @description adds a set of random distributions to the composite 
+				#' @description adds a set of random (uniform, normal, lognormal) distributions to the composite distribution with sensible (random) defaults
 				#' @param n the number of distributions to add
 				withRandomDistributions = function(n=2) {
 					for (i in c(1:n)) {
@@ -335,7 +344,7 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 					invisible(self)
 				},
 				
-				#' @description produce a set of samples conforming to this distribution
+				#' @description produce a set of samples conforming to this distribution, with random discrete value
 				#' @param n the number of samples
 				#' @return a data frame of samples (labelled x) associated with classes (labelled "class")
 				sample = function(n=1000) {
@@ -347,9 +356,9 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 				},
 				
 				
-				#' @description produce a set of samples conforming to this distribution
+				#' @description produce a set of samples conforming to this distribution with preset discrete value
 				#' @param classVector the number of samples
-				#' @return a data frame of samples (labelled x) associated with classes (labelled "class")
+				#' @return a data frame of samples with continuous values (labelled x) associated with discrete classes (labelled "y") and a sample id column (labelled i)
 				sampleByClass = function(classVector) {
 				  out = NULL
 				  id = 1
@@ -396,26 +405,7 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 					return(patchwork::wrap_plots(pdfPlot,cdfPlot,nrow=1))
 				},
 				
-				# testing the MI generation with a dataframe rather than a function
-#				numericalMI = function(xmin,xmax,resolution=1001) {
-#					d = self$getPdf(xmin,xmax,resolution)
-#					d = d %>% mutate(
-#									Ixy = pxy*log(pxy/(px*py)),
-#							) %>% group_by(y) %>% arrange(y,x) %>% mutate(
-#									# integrate x for each y
-#									Idxy = (x-lag(x,default=xmin))*(Ixy+lag(Ixy,default=0))/2
-#							) 
-#					d2 = d %>% summarise(
-#							Iy = sum(Idxy,na.rm=TRUE)
-#					)
-#					I = d2 %>% summarise(
-#							# sum over y
-#							I = sum(Iy,na.rm=TRUE)
-#					) %>% pull(I)
-#					return(I)
-#				},
-				
-				#' @description generate the theoretical mutual information
+				#' @description generate the theoretical mutual information for this set of distributions using numerical integration of the underlying functions
 				#' @return a single value for the mutual information of this function
 				theoreticalMI = function() {
 					py = self$weights/sum(self$weights) # y is classes
@@ -457,7 +447,9 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 ##### ---------------
 
 
-#' Get a named class distribution wrapper
+#' Simulate a data set with multiple features
+#' 
+#' simulating a dataset with more than one feature requires some logic sampling
 #'
 #' @keywords distributions
 #' @import dplyr
@@ -465,7 +457,7 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 MultivariableDistribution = R6::R6Class("MultivariableDistribution", public=list(
   
   #### Fields ----
-  #' @field classes the class names
+  #' @field features the feature names
   features = c(),
   #' @field classes the class names
   classes = c(),
@@ -475,8 +467,8 @@ MultivariableDistribution = R6::R6Class("MultivariableDistribution", public=list
   dists = c(),
   
   #### Methods ----
-  #' @description adds in a Distribution with a class name and weight
-  #' @param featureName the classname
+  #' @description adds in a ConditionalDistribution with a class name
+  #' @param featureName the class name
   #' @param distribution the pdf as an R6 ConditionalDistribution object (ConditionalDistribution$new(fn, fnParams...))
   withConditionalDistribution = function(distribution,featureName) {
     self$features = c(self$features,featureName)
@@ -484,7 +476,8 @@ MultivariableDistribution = R6::R6Class("MultivariableDistribution", public=list
     invisible(self)
   },
   
-  
+  #' @description sets the relative weights of the different outcome classes in the simulation
+  #' @param listWeights the weights as a named list e.g. list(feature1 = 0.1, ...)
   withClassWeights = function(listWeights) {
     self$classes = names(listWeights)
     self$weights = unlist(listWeights, use.names = FALSE)  
@@ -494,6 +487,7 @@ MultivariableDistribution = R6::R6Class("MultivariableDistribution", public=list
   #' @param n the number of samples
   #' @return a data frame of samples (labelled x) associated with classes (labelled "class")
   sample = function(n=1000) {
+    # TODO: change this to allow for missing values to be produced based on a class by class basis decided by the weights of the conditional disctributions
     max = sum(self$weights)
     cutPoints = c(-Inf,cumsum(self$weights))
     distIndex = cut(runif(n,0,max),cutPoints,labels=FALSE,right=FALSE)
@@ -501,6 +495,8 @@ MultivariableDistribution = R6::R6Class("MultivariableDistribution", public=list
     out = NULL
     for (i in c(1:length(self$dists))) {
       dist = self$dists[[i]]
+      # dist$weights
+      # runif(n,0,1) < 
       featureName = self$features[[i]]
       tmp = dist$sampleByClass(classList)
       tmp = tmp %>% mutate(feature=featureName)
@@ -509,6 +505,7 @@ MultivariableDistribution = R6::R6Class("MultivariableDistribution", public=list
     return(out %>% rename(outcome=y,value=x,sample=i))
   }
   
+  # TODO: multivariable plot
   #' #' @description plot this distributions as pdf and cdf
   #' #' @param xmin - the minimum of the support
   #' #' @param xmax - the maximum of the support
