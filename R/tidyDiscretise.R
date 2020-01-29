@@ -110,10 +110,10 @@ discretise_ByValue = function(df, continuousVar, discreteOutputVar, bins=NA, bin
   
   cutsDf = df %>% summarise(
     N=n(),
-    min = min(!!continuousVar),
-    max = max(!!continuousVar),
-    mean = mean(!!continuousVar),
-    sd = sd(!!continuousVar)
+    min = min(!!continuousVar,na.rm = TRUE),
+    max = max(!!continuousVar,na.rm = TRUE),
+    mean = mean(!!continuousVar,na.rm = TRUE),
+    sd = sd(!!continuousVar,na.rm = TRUE)
   ) %>% collect()
   
   cutsDf = cutsDf %>% group_by(!!!grps) %>% group_modify(function(d,...) { binStrategy(n=d$N,min=d$min,max=d$max,mean=d$mean,sd=d$sd) })

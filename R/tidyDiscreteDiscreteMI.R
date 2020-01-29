@@ -46,13 +46,17 @@ calculateDiscreteDiscreteMI_Entropy = function(df, groupXVars, groupYVars, entro
   # list of join variables for join by value
   groupJoinList = df %>% joinList(groupXVars)
   
-  Hy = df %>% group_by(!!!grps) %>% calculateDiscreteEntropy(groupYVars, method = entropyMethod, ...) %>% rename(I_y = I, I_y_sd = I_sd) %>% mutate(join = 1)
+  Hy = df %>% group_by(!!!grps) %>% 
+    calculateDiscreteEntropy(groupYVars, method = entropyMethod, ...) %>% 
+    rename(I_y = I, I_y_sd = I_sd) %>% mutate(join = 1)
   
-  Hygivenx = df %>% group_by(!!!grps, !!!groupXVars) %>% calculateDiscreteEntropy(groupYVars, method = entropyMethod, ...) %>% rename(N_x = N, I_given_x = I, I_given_x_sd = I_sd) %>% mutate(join = 1)
+  Hygivenx = df %>% group_by(!!!grps, !!!groupXVars) %>% 
+    calculateDiscreteEntropy(groupYVars, method = entropyMethod, ...) %>% 
+    rename(N_x = N, I_given_x = I, I_given_x_sd = I_sd) %>% mutate(join = 1)
   
   suppressWarnings({
-    tmp2 = Hygivenx %>% left_join(Hy, by=joinList) %>% mutate(p_x = as.double(N_x)/N) %>% group_by(!!!grps,N) %>% summarise(
-      		I_given_x = sum(I_given_x*p_x,na.rm = TRUE), 
+    tmp2 = Hygivenx %>% left_join(Hy, by=joinList) %>% mutate(p_x = as.double(N_x)/N) %>% group_by(!!!grps, N, I_y, I_y_sd) %>% summarise(
+      I_given_x = sum(I_given_x*p_x,na.rm = TRUE), 
 			I_given_x_sd = sum(I_given_x_sd*p_x,na.rm = TRUE)
     	) # sometimes max term has no non NA values. In which case this is NAl, which is ok but generates a warning
   })
@@ -61,10 +65,10 @@ calculateDiscreteDiscreteMI_Entropy = function(df, groupXVars, groupYVars, entro
     I = I_y - I_given_x, 
     I_sd = I_y_sd - I_given_x_sd,
     method =  paste0("Entropy - ",entropyMethod)
-  ) %>% select(!!!grps, N, I, I_sd, method)
+  ) %>% ungroup() %>% select(!!!grps, N, I, I_sd, method)
   
   # browser()
-  return(tmp2 %>% ungroup())
+  return(tmp2)
 }
 
 

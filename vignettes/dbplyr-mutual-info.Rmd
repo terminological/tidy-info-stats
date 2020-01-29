@@ -9,7 +9,6 @@ knit: (function(inputFile, encoding,...) {
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
-#devtools::install_github("cwida/duckdb/tools/rpkg", build = FALSE)
 #library(tidyinfostats)
 devtools::load_all("..")
 set.seed(101)
@@ -22,23 +21,12 @@ Suppose you have a database connection and you have some data loaded into it. He
 ```{r}
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = ":memory:")
 
-hb = ConditionalDistribution$new()
-hb$withDistribution(0.75, LogNormalDistribution$new(mode=12,var=2), "asymptomatic")
-hb$withDistribution(0.25, LogNormalDistribution$new(mode=8,var=3), "tired")
-hb$withDistribution(0.25, LogNormalDistribution$new(mode=4,var=5), "unwell")
-
-k = ConditionalDistribution$new()
-k$withDistribution(0.125, LogNormalDistribution$new(mode=1,var=0.5), "unwell")
-k$withDistribution(0.75, LogNormalDistribution$new(mode=2,var=1), "asymptomatic")
-k$withDistribution(0.125, LogNormalDistribution$new(mode=8,var=3), "tired")
-
 theoretical = tibble(
   measure = c("Mean","Variance","Mutual Information"),
   hb = c(hb$theoreticalMean(),hb$theoreticalVariance(), hb$theoreticalMI()),
   k = c(k$theoreticalMean(),k$theoreticalVariance(),k$theoreticalMI()))
 
-testData = k$sample(5000) %>% mutate(test="k") %>% bind_rows(
-  hb$sample(5000) %>% mutate(test="hb")) %>% rename(outcome=y, value=x)
+testData = bloodResultsSimulation(10000)
 
 testDataLazy = con %>% copy_to(testData)
 testDataLazy
@@ -50,19 +38,19 @@ For reference results as executed in R
 ```{r}
 # devtools::load_all("..")
 
-result = testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KWindow")
+result = testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KWindow")
 result
 ```
 
 Now executed on the dbplyr database:
 ```{r}
-lazyResult = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KWindow")
+lazyResult = testDataLazy %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KWindow")
 lazyResult %>% show_query()
 
 lazyResult %>% collect()
 
 # DONT run this. The KNN method is not efficient in SQL
-# lazyResult2 = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KNN", useKWindow=FALSE)
+# lazyResult2 = testDataLazy %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KNN", useKWindow=FALSE)
 # lazyResult2 %>% show_query()
 # lazyResult2
 ```
@@ -73,22 +61,22 @@ By rank discretisation with a fixed number of bins is equivalent to an N_tile in
 
 ```{r}
 # devtools::load_all("..")
-discretised = testDataLazy %>% group_by(test) %>% tidyinfostats::discretise_ByRank(value, value_discrete, bins=3) %>% collect()
-discretised %>% group_by(test,value_discrete) %>% summarise(count = n())
+discretised = testDataLazy %>% group_by(feature) %>% tidyinfostats::discretise_ByRank(value, value_discrete, bins=3) %>% collect()
+discretised %>% group_by(feature,value_discrete) %>% summarise(count = n())
 
 # Non dbplyr for comparison:
-# discretised = testData %>% group_by(test) %>% tidyinfostats::discretise_ByRank(value, value_discrete, bins=3)
+# discretised = testData %>% group_by(feature) %>% tidyinfostats::discretise_ByRank(value, value_discrete, bins=3)
 # discretised %>% group_by(test,value_discrete) %>% summarise(count = n())
 ```
 * TODO: needs debugging
 
 ```{r}
-# devtools::load_all("..")
+devtools::load_all("..")
 
-testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByRank", bins=100)
+testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByRank", bins=100)
 
 
-lazyResult3 = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByRank", bins=100)
+lazyResult3 = testDataLazy %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByRank", bins=100)
 #lazyResult3 %>% show_query()
 lazyResult3
 ```
@@ -96,12 +84,31 @@ lazyResult3
 ```{r}
 # devtools::load_all("..")
 
-#testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByValue", discreteMethod = "MontgomerySmith")
-testData %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByValue", discreteMethod = "Grassberger")
+#testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByValue", discreteMethod = "MontgomerySmith")
+testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByValue", mutualInfoMethod = "Grassberger")
 
-#lazyResult4 = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByValue", discreteMethod = "MontgomerySmith")
-lazyResult4 = testDataLazy %>% group_by(test) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByValue", discreteMethod = "Grassberger")
+#lazyResult4 = testDataLazy %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "DiscretiseByValue", discreteMethod = "MontgomerySmith")
+lazyResult4 = testDataLazy %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByValue", mutualInfoMethod = "Grassberger")
 
 
 lazyResult4
+```
+
+## Continuous probability estimation
+
+
+```{r}
+# devtools::load_all("..")
+
+ggplot(
+  testData %>% group_by(feature,outcome) %>% probabilitiesFromContinuous(value, method="SGolay"),
+  aes(x=value,y=p_x, colour=outcome)) + geom_point() + facet_wrap(vars(feature))
+
+# debug(probabilitiesFromContinuous_SGolay)
+# debug(applySGolayFilter)
+
+ggplot(
+  testDataLazy %>% group_by(feature,outcome) %>% probabilitiesFromContinuous(value, method="SGolay"),
+  aes(x=value,y=p_x, colour=outcome)) + geom_point() + facet_wrap(vars(feature))
+
 ```

@@ -3,19 +3,21 @@
 #' Some databases don't support window functions over grouped data. This requires a workaround to group and summarise then join the data.
 #' All database seem to support group_by(...) and then mutate(x = sum(...)) but not all will do group_by(...) and then mutate(x = mean(...)) for example.
 #' 
-#' Ranking functions all seem to work (including row_number)
+#' Ranking functions all seem to work natively (including row_number)
 #' 
 #' * sum
 #' * row_number
 #' * rank
 #' * lead, lag
 #' 
-#' Aggregation functions are variably supported by the default mutate depending on the database
+#' Aggregation on the other hand functions are variably supported by the default mutate depending on the database
 #' 
 #' * mean
 #' * sd
 #' * min
 #' * max
+#' 
+#' groupMutate allows any window functions to be applied to any database but using an intermediate table
 #' 
 #' @param df - a df which may be a dbplyr table
 #' @param ... - the contents of the mutuate function
@@ -61,9 +63,10 @@ labelGroup = function(df, groupVars, outputVar, summarise=FALSE) {
 
 #' Groupwise count
 #' 
-#' Performs a 2 level count either preserving the structure of the dataframe or as a summary, returning
-#' the dataframe with total counts for the grouping (N) and for the subgroup defined by "groupVars" (N_x). This allows us to 
-#' generate a probability of the subgroup in the group.
+#' Performs a 2 level count either preserving the structure of the dataframe (e.g. as a mutate function) or as a summary, returning
+#' the dataframe with total counts for the grouping (N) and for the subgroup defined by "groupVars" (N_x). This also allows us to 
+#' calculate a probability of the subgroup in the group. This is different from an rank_percent in that the input datafram may have already been
+#' summarised
 #' 
 #' @param df - a df which may be grouped. Grouping typically will be on a feature. N is the count of the items in the group
 #' @param groupVars - the grouping for which we want to create a label as a list of columns quoted by vars(...). This could be an outcome and 
@@ -71,6 +74,8 @@ labelGroup = function(df, groupVars, outputVar, summarise=FALSE) {
 #' @param summarise - return dataframe as-is with additional columns (N, N_x, p_x) (FALSE - the default) or return dataframe as group summary with only grouping info and output (TRUE)
 #' @return the grouped dataframe containing at a minumum, the df grouping columns, the groupVars columns, and a groupwise count of both levels of grouping labelled N and N_x and the groupwise p_x.
 #' @export
+#' @examples 
+#' mtcars %>% group_by(cyl) %>% groupwiseCount(vars(gear), summarise=TRUE) %>% mutate(p_x = N_x/N)
 groupwiseCount = function(df, groupVars, countVar=NULL, summarise=FALSE) {
   countVar = tryCatch(ensym(countVar),error = function(e) NULL)
   grps = df %>% groups()
@@ -129,9 +134,9 @@ digammaLookup = tibble(n = c(1:50), digamma = digamma(c(1:50)))
 #' @return the dataframe with an "outputVar" column containing the digamma value
 #' @export
 calculateDigamma = function(df, inputVar, outputVar) {
+  inputVar = ensym(inputVar)
+  outputVar = ensym(outputVar)
   if ("tbl_sql" %in% class(df)) {
-    inputVar = ensym(inputVar)
-    outputVar = ensym(outputVar)
     tmp = df %>% 
       left_join(digammaLookup %>% rename(!!inputVar := n, !!outputVar := digamma), by=as.character(inputVar), copy=TRUE) %>%
       mutate(!!outputVar := ifelse(is.na(!!outputVar), log(!!inputVar-1) + 1.0/(2*(!!inputVar-1) - 1.0/(12*(!!inputVar-1)^2) ), !!outputVar))
@@ -166,57 +171,118 @@ joinList = function(df,groupVars=NULL,defaultJoin=NULL) {
 #' @param polynomialOrder - order of the poynomial to fit
 #' @param filterLength - length of the filter
 #' @param derivative - derivative order for the fitted function
+#' @return a tidy format sgolay coefficient dataframe where position
 #' @export
+#' @examples 
+#' sgolayTable(2,5,1)
 sgolayTable = function(polynomialOrder, filterLength, derivative) {
   return(tibble(
     coefficient = as.vector(signal::sgolay(p=polynomialOrder, n=filterLength, m=derivative ,1)),
     position = rep(seq(-floor(filterLength/2),floor(filterLength/2)),filterLength),
-    offset = as.vector(sapply(seq(-floor(filterLength/2),floor(filterLength/2)),rep,filterLength)),
-    derivative = derivative
+    offset = as.vector(sapply(seq(-floor(filterLength/2),floor(filterLength/2)),rep,filterLength))
   ))
 }
 
 #' adjust the baseline coefficients of a SGoly filter for specifc derivative order and sample size (WIP)
 #' @param sgolayTable - a data frame containing the sgolay coefficients joined to a data set
 #' @param sampleSizeVar - the colum containing the sample size it is to be applied to
+#' @param supportRange - the total support range of the data being smoothed (defaults to 1 for CDFs)
 #' @export
-coefficientAdj = function(sgolayTable, sampleSizeVar) {
+coefficientAdj = function(sgolayTable, sampleSizeVar, derivative, supportRange=1) {
   sampleSizeVar = ensym(sampleSizeVar)
-  sgolayTable %>% mutate(coefficient = coefficient/((1/(!!sampleSizeVar))^derivative)) %>% select(-derivative)
+  sgolayTable %>% mutate(coefficientAdj = coefficient / ((as.double(supportRange)/(as.double(!!sampleSizeVar)))^local(derivative)) )
 }
 
 # tibble(group = c(1,1,1,2,2,2,2), value=runif(7)) %>% group_by(group) %>% mutate(N=n())
 # tibble(group = sample.int(4,size=100,replace=TRUE), value=rnorm(100))
 
-#' apply a sgolay filter (WIP) to data in a dbplyr dataframe
+#' apply a sgolay filter groupwise to data in a dbplyr dataframe in SQL friendly manner
 #' @param df - a potentially grouped data frame with continuous observations
 #' @param continuousVar - the column containing the samples
+#' @param outputVar - the column to write the filter result
 #' @param k_05 - the half value of the filter width
+#' @param p - the filter order
+#' @param m - the mth derivative
+#' @return a summarised dataframe including group info, the continuous variable and an output variable representing the filtered value
 #' @export
-applySGolayFilter = function(df, continuousVar, k_05=10) {
-  k_05=2
-  df = tibble(group = sample.int(4,size=100,replace=TRUE), value=rnorm(100)) %>% group_by(group)
-  continuousVar = "value"
+applySGolayFilter = function(df, continuousVar, outputVar, k_05, p, m) {
+  # k_05=2
+  # df = tibble(group = sample.int(4,size=100,replace=TRUE), value=rnorm(100)) %>% group_by(group)
+  # continuousVar = "value"
   grps = df %>% groups()
   continuousVar = ensym(continuousVar)
+  outputVar = ensym(outputVar)
   
-  join = joinList(df,defaultJoin = "tmp_id")
+  if ("tbl_sql" %in% class(df)) {
+    
+    # a dbplyr table - copy sgolay coefficients to database
+    df = df %>% arrange(!!continuousVar) %>% mutate(
+      tmp_id=row_number(),
+      N = n(),
+      k_05 = k_05 # ifelse(N<7,NA,ifelse(k_05<floor((N-1)/2),k_05,floor((N-1)/2)))
+    ) %>% mutate(
+      maxSelector = ifelse(tmp_id<=(k_05*2+1),tmp_id-1,k_05),
+      minSelector = ifelse(tmp_id>=(N-k_05*2),tmp_id-N,-k_05),
+      # offset = ifelse(tmp_id<=k_05, tmp_id-k_05-1, ifelse(tmp_id>(N-k_05),k_05-(N-tmp_id),0)),
+      tmp_join=1
+    ) 
+    
+    # the coefficients are calculated assuming a ts of 1. This is later adjusted for sample size
+    coeff = sgolayTable(p, k_05*2+1, m) %>% mutate(tmp_join=1)
+    coeff = coeff %>% mutate(selector = offset-position)
+    
+    tmp = df %>% left_join(coeff, by="tmp_join", copy=TRUE) %>% select(-tmp_join) %>% 
+      filter(maxSelector>=selector & minSelector<=selector) %>% 
+      mutate(
+        sample = tmp_id-selector,
+        position_match = ifelse(sample<=k_05, sample-k_05-1, ifelse(sample>(N-k_05),k_05-(N-sample),0))
+      ) %>% filter(position == position_match) 
+    
+    # coefficients are groupwise adjusted for sample size which may vary between group
+    tmp = tmp %>% coefficientAdj(N, derivative = m)
+    
+    
+    tmp2 = tmp %>% group_by(!!!grps,sample) %>% summarise(
+      N = max(N,na.rm = TRUE), 
+      k_05 = max(k_05,na.rm = TRUE),
+      !!outputVar := sum(coefficientAdj*value), 
+      !!continuousVar := sum(value*ifelse(tmp_id==sample,1.0,0.0))
+    ) %>% mutate(
+      !!outputVar := ifelse(N<(k_05*2+1),NA,!!outputVar)
+    )
+    
+    return(tmp2 %>% select(-sample, -k_05))
+    
+  } else {
+    
+    # Not a dplyr table - use signal::sgolayfilt
+    out = df %>% rename(tmp_x_continuous = !!continuousVar) %>%  group_by(!!!grps) %>% arrange(tmp_x_continuous) %>% group_modify(
+      function(d,...) {
+        k = k_05*2+1
+        samples = nrow(d)
+        # if (k >= samples) k = samples-samples%%2-1
+        if (k < samples-1) {
+          d_x_d_r = signal::sgolayfilt(d$tmp_x_continuous, p=p, n=k, m=m, ts=1.0/samples)
+          return(
+            tibble(
+              N = samples,
+              !!continuousVar := d$tmp_x_continuous,
+              !!outputVar := d_x_d_r # prevent negative gradient - d_x_d_r is an inverse cdf - always positive
+            )
+          )
+        } else {
+          return(
+            tibble(
+              N = samples, # TODO
+              !!continuousVar := d$tmp_x_continuous,
+              !!outputVar := rep(NA,length(d$tmp_x_continuous))
+            )
+          )
+        }
+      })
+      return(out)
+  }
   
-  df = df %>% arrange(!!continuousVar) %>% mutate(
-    tmp_id=row_number(),
-    N = n(),
-    k_05 = k_05 # ifelse(N<7,NA,ifelse(k_05<floor((N-1)/2),k_05,floor((N-1)/2)))
-  ) %>% mutate(position = ifelse(
-    tmp_id<=k_05, tmp_id-k_05-1, ifelse(
-      tmp_id>(N-k_05), tmp_id-(N-k_05), 0
-    ))
-  ) 
   
-  coeff = sgolayTable(2, k_05*2+1, 1) %>% mutate(x = position+offset)
   
-  tmp = df %>% left_join(coeff, by=c("position")) %>% mutate(sample = tmp_id-offset+position)
-  #TODO: figurte out the alignament of coefficient and value.
-  # adjust coefficients based on sample size
-  # sum the coeffieicents multiplied by value for each point.
-  stop("Not yet implemented")
 }

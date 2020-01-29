@@ -19,17 +19,19 @@ Some databases don't support window functions over grouped data. This requires a
 All database seem to support group_by(...) and then mutate(x = sum(...)) but not all will do group_by(...) and then mutate(x = mean(...)) for example.
 }
 \details{
-Ranking functions all seem to work (including row_number)
+Ranking functions all seem to work natively (including row_number)
 
 * sum
 * row_number
 * rank
 * lead, lag
 
-Aggregation functions are variably supported by the default mutate depending on the database
+Aggregation on the other hand functions are variably supported by the default mutate depending on the database
 
 * mean
 * sd
 * min
 * max
+
+groupMutate allows any window functions to be applied to any database but using an intermediate table
 }

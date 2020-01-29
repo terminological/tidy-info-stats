@@ -4,12 +4,7 @@
 \alias{probabilitiesFromContinuous_SGolay}
 \title{Helper function to calculate probability from continuous data in a tidy friendly manner}
 \usage{
-probabilitiesFromContinuous_SGolay(
-  df,
-  continuousVar,
-  k_05 = 10,
-  collect = FALSE
-)
+probabilitiesFromContinuous_SGolay(df, continuousVar, k_05 = 10)
 }
 \arguments{
 \item{df}{a dataframe containing a column of a continuous variable X and one row per observation, 
@@ -20,7 +15,7 @@ df may also be grouped and in which case the grouping is preserved in the result
 \item{continousVar}{the datatable column(s) containing the observation.}
 }
 \value{
-A mutated datatable with observations of X, the total number of observations of X (N), the probability density (p_x), and self information (I_x) associated with the value of X
+A mutated datatable with observations of X, the total number of observations of X (N), the probability density (p_x)
 }
 \description{
 The purpose of this is to calculate the probabilities of events from continuous data. 

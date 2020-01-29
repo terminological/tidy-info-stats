@@ -2,17 +2,26 @@
 % Please edit documentation in R/dbplyHelper.R
 \name{applySGolayFilter}
 \alias{applySGolayFilter}
-\title{apply a sgolay filter (WIP) to data in a dbplyr dataframe}
+\title{apply a sgolay filter groupwise to data in a dbplyr dataframe in SQL friendly manner}
 \usage{
-applySGolayFilter(df, continuousVar, k_05 = 10)
+applySGolayFilter(df, continuousVar, outputVar, k_05, p, m)
 }
 \arguments{
 \item{df}{- a potentially grouped data frame with continuous observations}
 
 \item{continuousVar}{- the column containing the samples}
 
+\item{outputVar}{- the column to write the filter result}
+
 \item{k_05}{- the half value of the filter width}
+
+\item{p}{- the filter order}
+
+\item{m}{- the mth derivative}
+}
+\value{
+a summarised dataframe including group info, the continuous variable and an output variable representing the filtered value
 }
 \description{
-apply a sgolay filter (WIP) to data in a dbplyr dataframe
+apply a sgolay filter groupwise to data in a dbplyr dataframe in SQL friendly manner
 }

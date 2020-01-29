@@ -10,7 +10,7 @@
 calculateContinuousEntropy = function(df, continuousVar, method, ...) {
   switch (method,
           Quantile = calculateContinuousEntropy_Quantile(df, {{continuousVar}}, ...),
-		  PDF = calculateContinuousEntropy_PDF(df, {{continuousVar}}, ...),
+		      PDF = calculateContinuousEntropy_PDF(df, {{continuousVar}}, ...),
           {stop(paste0(method," not a valid option"))}
   )
 }
@@ -35,8 +35,7 @@ calculateContinuousEntropy = function(df, continuousVar, method, ...) {
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateContinuousEntropy_Quantile = function(df, continuousVar, k_05=10, collect = FALSE, ...) {
-  df = collectDf(df,collect)
+calculateContinuousEntropy_Quantile = function(df, continuousVar, k_05=10, ...) {
   grps = df %>% groups()
   
   continuousVar = ensym(continuousVar)
@@ -47,40 +46,19 @@ calculateContinuousEntropy_Quantile = function(df, continuousVar, k_05=10, colle
     y_continuous = !!continuousVar
   )
   
-  tmp2 = tmp %>%  group_by(!!!grps) %>% arrange(y_continuous) %>% group_modify(
-    function(d,...) {
-      k = k_05*2+1
-      samples = min(d$N,na.rm=TRUE)
-      if (k < samples-1L) {
-        d_Q_d_p = signal::sgolayfilt(d$y_continuous, p=2, n=k, m=1, ts=1.0/(samples+1L))
-        tmp3 = tibble(
-          N = d$N,
-          y_continuous = d$y_continuous,
-          d_Q_d_p = d_Q_d_p
-        ) %>% mutate(
-          log_d_Q = log(ifelse(d_Q_d_p <= 0, 0.00001, d_Q_d_p))
-        ) 
-        tmp4 = tmp3 %>% summarise(
-          N = max(d$N),
-          I = sum(log_d_Q*(1.0/(samples+1L)),na.rm = TRUE),
-          I_sd = NA,
-          method="Quantile"
-        )
-        return(tmp4)
-      } else {
-        return(
-          tibble(
-            N = max(d$N),
-            I = NA,
-            I_sd = NA,
-            method="Quantile"
-          )
-        )
-      }
-    }
+  tmp2 = tmp %>%  group_by(!!!grps) %>% applySGolayFilter(y_continuous, d_Q_d_p, k_05 = k_05) %>% mutate(
+    log_d_Q = log(ifelse(d_Q_d_p <= 0, NA, d_Q_d_p))
+  ) 
+  
+  tmp4 = tmp2 %>% summarise(
+      N = max(N,na.rm = TRUE),
+      I = sum(log_d_Q*(1.0/(N+1L)),na.rm = TRUE),
+      I_sd = NA,
+      method="Quantile"
   )
   
-  return(tmp2)
+  return(tmp4)
+  
   
 }
 

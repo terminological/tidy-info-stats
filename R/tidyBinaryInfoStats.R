@@ -89,7 +89,7 @@ calculateMultiClassMI = function(df) {
 							pmi_x1y1 = ifelse( p_x1y1==0, ifelse(p_x1==0 | p_y1==0, 0, NA), log(p_x1y1/(p_x1*p_y1)) ),
 							I_xy = ifelse(p_x1y1==0|p_x1==0|p_y1==0, 0, p_x1y1*pmi_x1y1)
 					) %>% summarise(
-							N = max(N),
+							N = max(N, na.rm = TRUE),
 							I = sum(I_xy, na.rm=TRUE), #+ifelse(adjust,mm_adjust,0),
 							I_sd = NA,
 							method = "Empirical" #ifelse(adjust,"Empirical MM","Empirical")

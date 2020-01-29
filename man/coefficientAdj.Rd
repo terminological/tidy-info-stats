@@ -4,12 +4,14 @@
 \alias{coefficientAdj}
 \title{adjust the baseline coefficients of a SGoly filter for specifc derivative order and sample size (WIP)}
 \usage{
-coefficientAdj(sgolayTable, sampleSizeVar)
+coefficientAdj(sgolayTable, sampleSizeVar, derivative, supportRange = 1)
 }
 \arguments{
 \item{sgolayTable}{- a data frame containing the sgolay coefficients joined to a data set}
 
 \item{sampleSizeVar}{- the colum containing the sample size it is to be applied to}
+
+\item{supportRange}{- the total support range of the data being smoothed (defaults to 1 for CDFs)}
 }
 \description{
 adjust the baseline coefficients of a SGoly filter for specifc derivative order and sample size (WIP)

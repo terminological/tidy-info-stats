@@ -13,6 +13,12 @@ sgolayTable(polynomialOrder, filterLength, derivative)
 
 \item{derivative}{- derivative order for the fitted function}
 }
+\value{
+a tidy format sgolay coefficient dataframe where position
+}
 \description{
 Precalculates a sgolay filter (WIP)
+}
+\examples{
+sgolayTable(2,5,1)
 }

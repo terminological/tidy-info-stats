@@ -146,11 +146,11 @@ calculateDiscreteEntropy_Grassberger = function(df, groupVars, countVar=NULL, ..
   tmp2 = tmp %>% calculateDigamma(N_x,digamma_N_x) %>% 
     mutate(
       p_x = as.double(N_x)/N,
-      G_N_x = digamma_N_x + ((-1)^N_x)/(N_x*(N_x+1)), #TODO: consider expanding for l=1, l=2, etc...
+      G_N_x = digamma_N_x + ((-1)^N_x)/(N_x*(N_x+1)) #TODO: consider expanding for l=1, l=2, etc...
     )
   
   tmp3 = tmp2 %>% ungroup() %>% group_by(!!!grps, N) %>% summarise(
-    I = log(N) - sum(p_x * G_N_x,na.rm = TRUE),
+    I = log(max(N,na.rm = TRUE)) - sum(p_x * G_N_x,na.rm = TRUE),
     I_sd = NA,
     method = "Grassberger"
   ) 
@@ -234,7 +234,7 @@ calculateDiscreteEntropy_Compression = function(df, groupVars, orderingVar = NUL
     x_int = row_number()
   )
   
-  if(max(groupIds$x_int) > 256) stop(paste0("Compression cannot be used on discrete data with more than 256 levels"))
+  if(max(groupIds$x_int,na.rm = TRUE) > 256) stop(paste0("Compression cannot be used on discrete data with more than 256 levels"))
   
   groupIds = groupIds %>% group_by(!!!grps) %>% mutate(
     x_raw = as.raw(x_int-1),
@@ -247,7 +247,7 @@ calculateDiscreteEntropy_Compression = function(df, groupVars, orderingVar = NUL
   
   tmp2 = tmp %>% group_by(!!!grps, C_x, N) %>% group_modify(function(d,g,...) {
     C0 = length(memCompress(as.raw(rep(0,g$N))))
-    C1 = C0+as.double(g$N)/log(g$C_x) #max(sapply(c(1:10), function(i) length(memCompress(as.raw(sample.int(g$C_x,size=g$N,replace=TRUE)-1)))))
+    C1 = C0+as.double(g$N)/log(g$C_x) 
     C = length(memCompress(as.vector(d$x_raw)))
     if (C > C1) C=C1 # prevent entropy exceeding theoretical maximum
     H = as.double(C-C0)/(C1-C0) * log(g$C_x) # original paper includes a degrees of freedom parameter here. with this setup this can only be one...?

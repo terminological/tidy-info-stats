@@ -19,7 +19,11 @@ groupwiseCount(df, groupVars, countVar = NULL, summarise = FALSE)
 the grouped dataframe containing at a minumum, the df grouping columns, the groupVars columns, and a groupwise count of both levels of grouping labelled N and N_x and the groupwise p_x.
 }
 \description{
-Performs a 2 level count either preserving the structure of the dataframe or as a summary, returning
-the dataframe with total counts for the grouping (N) and for the subgroup defined by "groupVars" (N_x). This allows us to 
-generate a probability of the subgroup in the group.
+Performs a 2 level count either preserving the structure of the dataframe (e.g. as a mutate function) or as a summary, returning
+the dataframe with total counts for the grouping (N) and for the subgroup defined by "groupVars" (N_x). This also allows us to 
+calculate a probability of the subgroup in the group. This is different from an rank_percent in that the input datafram may have already been
+summarised
+}
+\examples{
+mtcars \%>\% group_by(cyl) \%>\% groupwiseCount(vars(gear), summarise=TRUE) \%>\% mutate(p_x = N_x/N)
 }

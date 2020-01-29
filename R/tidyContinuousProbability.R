@@ -31,47 +31,19 @@ probabilitiesFromContinuous = function(df, continuousVar, method="Kernel", ...) 
 #' df may also be grouped and in which case the grouping is preserved in the result.
 #' @param continousVar the datatable column(s) containing the observation.
 #' @param k_05 the sgolay smoothing window width.
-#' @return A mutated datatable with observations of X, the total number of observations of X (N), the probability density (p_x), and self information (I_x) associated with the value of X
+#' @return A mutated datatable with observations of X, the total number of observations of X (N), the probability density (p_x)
 #' @import dplyr
 #' @export
-probabilitiesFromContinuous_SGolay = function(df, continuousVar, k_05 = 10, collect=FALSE) {
-	df = collectDf(df,collect)
+probabilitiesFromContinuous_SGolay = function(df, continuousVar, k_05 = 10) {
 	continuousVar = ensym(continuousVar)
 	grps = df %>% groups()
 	
 	# groupwise count creates an N and N_x  column based on groupVars, and countVar
-	df = df %>% mutate(
-			tmp_x_continuous = !!continuousVar
-	)
-	
-	tmp2 = df %>%  group_by(!!!grps) %>% arrange(tmp_x_continuous) %>% group_modify(
-			function(d,...) {
-				k = k_05*2+1
-				samples = nrow(d)
-				# if (k >= samples) k = samples-samples%%2-1
-				if (k < samples-1) {
-					d_x_d_r = signal::sgolayfilt(d$tmp_x_continuous, p=2, n=k, m=1, ts=1.0/samples)
-					d_x_d_r = ifelse(d_x_d_r <= 0, 0.0001, d_x_d_r)
-					return(
-							tibble(
-											N = samples,
-											tmp_x_continuous = d$tmp_x_continuous,
-											d_x_d_r = d_x_d_r # prevent negative gradient - d_x_d_r is an inverse cdf - always positive
-									) %>% mutate(
-											p_x = 1.0/d_x_d_r
-									) %>% select( -d_x_d_r )
-					)
-				} else {
-					return(
-							tibble(
-									N = samples, # TODO
-									tmp_x_continuous = d$tmp_x_continuous,
-									p_x = rep(NA,length(d$tmp_x_continuous))
-							)
-					)
-				}
-			}
-	)
+	df = df %>% mutate(tmp_x_continuous = !!continuousVar)
+	tmp2 = df %>%  group_by(!!!grps) %>% applySGolayFilter(tmp_x_continuous, d_x_d_r, k_05 = k_05, p=2, m=1)
+	tmp2 = tmp2 %>% mutate(
+	    p_x = 1.0/ifelse(d_x_d_r <= 0, NA, d_x_d_r)
+	) %>% select( -d_x_d_r )
 	
 	tmp2 = tmp2 %>% rename(!!continuousVar := tmp_x_continuous)
 	
@@ -111,13 +83,13 @@ probabilitiesFromContinuous_Kernel = function(df, continuousVar, minVar=NULL, ma
 	if (!identical(maxVar,NULL)) {
 		df = df %>% mutate(tmp_x_max = !!maxVar)
 	} else {
-		df = df %>% mutate(tmp_x_max = max(tmp_x_continuous))
+		df = df %>% mutate(tmp_x_max = max(tmp_x_continuous, na.rm = TRUE))
 	}
 	
 	tmp2 = df %>% group_by(!!!grps) %>% group_modify(
 			function(d,...) {
-				dens = density(d$tmp_x_continuous, bw="nrd0", kernel="gaussian", from=min(d$tmp_x_min), to=max(d$tmp_x_max), n=512)
-				originalSize = max(d$N)
+				dens = density(d$tmp_x_continuous, bw="nrd0", kernel="gaussian", from=min(d$tmp_x_min,na.rm = TRUE), to=max(d$tmp_x_max,na.rm = TRUE), n=512)
+				originalSize = max(d$N,na.rm = TRUE)
 				return(
 						tibble(
 								N = originalSize,

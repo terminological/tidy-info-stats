@@ -107,9 +107,9 @@ calculateDiscreteContinuousPointwiseConditionalEntropy_KWindow = function(df, di
 			)
 	
 	tmp5 = tmp4 %>% filter(!is.na(I_i)) %>% group_by(!!!grps,!!!discreteVars) %>% summarize(
-			N = max(N),
-			N_x = max(N_x),
-			p_x = max(as.double(N_x)/N),
+			N = max(N,na.rm = TRUE),
+			N_x = max(N_x,na.rm = TRUE),
+			p_x = max(as.double(N_x)/N, na.rm = TRUE),
 			I_given_x = mean(I_i,na.rm = TRUE),
 			I_given_x_sd = sd(I_i,na.rm = TRUE)/sqrt(max(N,na.rm=TRUE))
 	) %>% mutate(method = "KWindow")
@@ -162,9 +162,9 @@ calculateDiscreteContinuousPointwiseConditionalEntropy_Kernel = function(df, dis
 					# TODO: this integegration could be improved. lead(pmi_xy,default = 0)
 					d_I_d_xy = (pmi_xy+lag(pmi_xy,1,default=0))*as.double(y_continuous-lag(y_continuous))/2
 			) %>% group_by(!!!grps,!!!discreteVars) %>% summarise (
-					N = max(N),
-					N_x = max(N_x),
-					p_x = max(p_x),
+					N = max(N,na.rm = TRUE),
+					N_x = max(N_x,na.rm = TRUE),
+					p_x = max(p_x,na.rm = TRUE),
 					I_given_x = sum(d_I_d_xy,na.rm=TRUE)/p_x, # this does the sum over x and computes the integral over y at the same time.
 					I_given_x_sd = NA,
 					method = "Kernel"
@@ -389,9 +389,9 @@ calculateDiscreteContinuousPointwiseConditionalEntropy_KNN = function(df, discre
 			)
 	
 	tmp5 = tmp4 %>% filter(!is.na(I_i)) %>% group_by(!!!grps,!!!discreteVars) %>% summarize(
-			N = max(N),
-			N_x = max(N_x),
-			p_x = max(as.double(N_x)/N),
+			N = max(N,na.rm = TRUE),
+			N_x = max(N_x,na.rm = TRUE),
+			p_x = max(as.double(N_x)/N,na.rm = TRUE),
 			I_given_x = mean(I_i,na.rm = TRUE),
 			I_given_x_sd = sd(I_i,na.rm = TRUE)/sqrt(max(N,na.rm=TRUE))
 	) %>% mutate(method = "KNN")

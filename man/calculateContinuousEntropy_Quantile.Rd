@@ -5,13 +5,7 @@
 \title{calculate differential entropy of a continuous value (X) using a quantile function smoothing approach:
 Entropy of continuous data - e.g. SGolay approach / discretisation}
 \usage{
-calculateContinuousEntropy_Quantile(
-  df,
-  continuousVar,
-  k_05 = 10,
-  collect = FALSE,
-  ...
-)
+calculateContinuousEntropy_Quantile(df, continuousVar, k_05 = 10, ...)
 }
 \arguments{
 \item{df}{- may be grouped, in which case the grouping is interpreted as different types of discrete variable}
@@ -20,9 +14,9 @@ calculateContinuousEntropy_Quantile(
 
 \item{k_05}{- the half window width of the SG filter that smooths the data. This is dependent on data but typically not less that 10.}
 
-\item{collect}{- if TRUE will collect dbplyr tables before processing, otherwise (the default) will fail on dbplyr tables}
-
 \item{groupVars}{- the columns of the discrete value quoted by the vars() function (e.g. ggplot facet_wrap)}
+
+\item{collect}{- if TRUE will collect dbplyr tables before processing, otherwise (the default) will fail on dbplyr tables}
 }
 \value{
 a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry

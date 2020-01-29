@@ -20,8 +20,9 @@ Imports:
 Remotes: 
   thomasp85/patchwork
 Suggests: 
-  knitr,
-  rmarkdown,
-  RSQLite
+    knitr,
+    rmarkdown,
+    RSQLite,
+    testthat (>= 2.1.0)
 VignetteBuilder: knitr
 RoxygenNote: 7.0.2
