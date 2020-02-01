@@ -118,7 +118,7 @@ calculateDiscreteEntropy_Histogram = function(df, groupVars,  countVar=NULL, mm=
   
   tmp3 = tmp %>% ungroup() %>% group_by(!!!grps, N) %>% summarise(
     I = sum(p_x*I_x,na.rm = TRUE), 
-    I_sd = NA,
+    I_sd = as.double(NA),
     method = "Histogram"
   )
   
@@ -151,7 +151,7 @@ calculateDiscreteEntropy_Grassberger = function(df, groupVars, countVar=NULL, ..
   
   tmp3 = tmp2 %>% ungroup() %>% group_by(!!!grps, N) %>% summarise(
     I = log(max(N,na.rm = TRUE)) - sum(p_x * G_N_x,na.rm = TRUE),
-    I_sd = NA,
+    I_sd = as.double(NA),
     method = "Grassberger"
   ) 
   
@@ -191,7 +191,7 @@ calculateDiscreteEntropy_InfoTheo = function(df, groupVars, infoTheoMethod="mm",
   tmp2 = tmp %>% ungroup() %>% group_by(!!!grps,N) %>% group_modify(function(d,...) {
     tibble(
       I = infotheo::entropy(d$x_int, method=infoTheoMethod),
-      I_sd = NA,
+      I_sd = as.double(NA),
       method = "InfoTheo"
     )
   })
@@ -255,7 +255,7 @@ calculateDiscreteEntropy_Compression = function(df, groupVars, orderingVar = NUL
     # browser()
     return(tibble(
       I = H,
-      I_sd = NA,
+      I_sd = as.double(NA),
       method = "Compression"
     ))
   })

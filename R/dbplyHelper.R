@@ -26,7 +26,7 @@
 groupMutate = function(df, ...) {
   if ("tbl_sql" %in% class(df)) {
     grps = df %>% groups()
-    if (length(grps == 0)) stop("groupMutate can only work on grouped data")
+    if (length(grps) == 0) stop("groupMutate can only work on grouped data")
     tmp_df <- df %>% group_by(!!!grps) %>% summarize(...)
     return(df %>% left_join(tmp_df, by=sapply(grps,as.character)))
   } else {
@@ -57,7 +57,108 @@ labelGroup = function(df, groupVars, outputVar, summarise=FALSE) {
     joinList = df %>% joinList(groupVars)
     return(df %>% left_join(tmp,by=joinList))
   }
+}
+
+
+#' Converts a tidy dataframe into a Matrix::sparseMatrix 
+#' 
+#' offloading the majority of processing onto sql if dbplyr tables are involved
+#' 
+#' @param df - a df
+#' @param rowVar - the dataframe columns(s) which define the matrix row, quoted by vars(...) - typically this is the observation id
+#' @param colVar - the dataframe columns(s) which define the matrix columns, quoted by vars(...) - typically this is the feature id
+#' @param valueVar - the name of the value variable. (#TODO could be missing - in which case use binary)
+#' @param rowNameVar - (optional) the dataframe column continaing the row names otherwise use rowVar
+#' @param colNameVar - (optional) the dataframe column continaing the column names otherwise use colVar
+#' @param ... - other parameters passes to Matrix::sparseMatrix
+#' @return a dbplyr dataframe containing the grouped function
+#' @export
+collectAsSparseMatrix = function(df, rowVar, colVar, valueVar=NULL, rowNameVar=NULL, colNameVar=NULL, ...) {
+  valueVar = tryCatch(ensym(valueVar), error=function(e) NULL)
+  rowVar = ensym(rowVar)
+  colVar = ensym(colVar)
+  rowNameVar = tryCatch(ensym(rowNameVar), error=function(e) NULL)
+  colNameVar = tryCatch(ensym(colNameVar), error=function(e) NULL)
+  df = df %>% ungroup()
   
+  # group data by rowVar and generate a sequential row_id and label
+  if (identical(rowNameVar,NULL)) {
+    rows = df %>% select(!!rowVar) %>% distinct() %>% arrange(!!rowVar) %>% mutate(tmp_row_id = row_number())
+    rowLabels = rows %>% pull(!!rowVar)
+  } else {
+    rows = df %>% group_by(!!rowVar) %>% summarise(tmp_label = !!rowNameVar) %>% arrange(!!rowVar) %>% mutate(tmp_row_id = row_number())
+    rowLabels = rows %>% pull(tmp_label)
+  }
+  
+  # group data by colVar and generate a sequential col_id and label
+  if (identical(colNameVar,NULL)) {
+    cols = df %>% select(!!colVar) %>% distinct() %>% arrange(!!colVar) %>% mutate(tmp_col_id = row_number())
+    colLabels = cols %>% pull(!!colVar)
+  } else {
+    cols = df %>% group_by(!!colVar) %>% summarise(tmp_label = min(!!colNameVar)) %>% arrange(!!colVar) %>% mutate(tmp_col_id = row_number())
+    colLabels = cols %>% pull(tmp_label)
+  }
+  
+  if (identical(valueVar,NULL)) {
+    
+    # There is no value so we use the pattern matrix form of Matrix::sparseMatrix
+    data = df %>% 
+      select(!!rowVar,!!colVar) %>% 
+      inner_join(rows, by=as.character(rowVar)) %>% 
+      inner_join(cols, by=as.character(colVar)) %>% 
+      select(tmp_row_id, tmp_col_id) %>%
+      collect()
+    #browser()
+    return(Matrix::sparseMatrix(i = data$tmp_row_id, j=data$tmp_col_id, dimnames= list(rowLabels,colLabels), ...))
+    
+  } else {
+    
+    data = df %>% 
+      select(!!rowVar,!!colVar,!!valueVar) %>% 
+      inner_join(rows, by=as.character(rowVar)) %>% 
+      inner_join(cols, by=as.character(colVar)) %>% 
+      rename(tmp_value = !!valueVar) %>%
+      select(tmp_row_id, tmp_col_id, tmp_value) %>%
+      collect()
+    #browser()
+    return(Matrix::sparseMatrix(i = data$tmp_row_id, j=data$tmp_col_id, x=data$tmp_value, dimnames=list(rowLabels,colLabels), ...))
+    
+  }
+  
+}
+
+
+#' Converts a tidy dataframe into a Matrix::sparseMatrix 
+#' 
+#' offloading the majority of processing onto sql if dbplyr tables are involved
+#' 
+#' @param df - a df
+#' @param rowVar - the dataframe columns(s) which define the matrix row, quoted by vars(...) - typically this is the observation id
+#' @param colVar - the dataframe columns(s) which define the matrix columns, quoted by vars(...) - typically this is the feature id
+#' @param valueVar - the name of the value variable. (#TODO could be missing - in which case use binary)
+#' @param rowNameVar - (optional) the dataframe column continaing the row names otherwise use rowVar
+#' @param colNameVar - (optional) the dataframe column continaing the column names otherwise use colVar
+#' @param ... - other parameters passes to Matrix::sparseMatrix
+#' @return a dbplyr dataframe containing the grouped function
+#' @export
+collectOutcomeVector = function(df, rowVar, outcomeVar, outcomeNameVar=NULL, ...) {
+  rowVar = ensym(rowVar)
+  outcomeVar = ensym(outcomeVar)
+  outcomeNameVar = tryCatch(ensym(outcomeNameVar), error=function(e) NULL)
+  df = df %>% ungroup()
+  
+  # group data by rowVar and generate a sequential row_id and label
+  if (identical(outcomeNameVar,NULL)) {
+    rows = df %>% select(!!rowVar, !!outcomeVar) %>% distinct() %>% arrange(!!rowVar)
+    outcomeVector = rows %>% pull(!!outcomeVar)
+  } else {
+    rows = df %>% group_by(!!rowVar, !!outcomeVar) %>% summarise(tmp_label = min(!!outcomeNameVar)) %>% arrange(!!rowVar)
+    outcomeVector = rows %>% pull(!!outcomeVar)
+    outcomeLabels = rows %>% pull(tmp_label)
+    names(outcomeVector) = outcomeLabels
+  }
+  
+  return(outcomeVector)
 }
 
 
@@ -236,7 +337,7 @@ applySGolayFilter = function(df, continuousVar, outputVar, k_05, p, m) {
       mutate(
         sample = tmp_id-selector,
         position_match = ifelse(sample<=k_05, sample-k_05-1, ifelse(sample>(N-k_05),k_05-(N-sample),0))
-      ) %>% filter(position == position_match) 
+      ) %>% filter(position == position_match) %>% compute()
     
     # coefficients are groupwise adjusted for sample size which may vary between group
     tmp = tmp %>% coefficientAdj(N, derivative = m)
@@ -245,11 +346,11 @@ applySGolayFilter = function(df, continuousVar, outputVar, k_05, p, m) {
     tmp2 = tmp %>% group_by(!!!grps,sample) %>% summarise(
       N = max(N,na.rm = TRUE), 
       k_05 = max(k_05,na.rm = TRUE),
-      !!outputVar := sum(coefficientAdj*value), 
-      !!continuousVar := sum(value*ifelse(tmp_id==sample,1.0,0.0))
+      !!outputVar := sum(coefficientAdj*value, na.rm = TRUE), 
+      !!continuousVar := sum(value*ifelse(tmp_id==sample,1.0,0.0), na.rm = TRUE)
     ) %>% mutate(
       !!outputVar := ifelse(N<(k_05*2+1),NA,!!outputVar)
-    )
+    ) %>% compute()
     
     return(tmp2 %>% select(-sample, -k_05))
     

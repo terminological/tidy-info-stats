@@ -43,4 +43,7 @@ Tdiyinfostats
 devtools::load_all("~/Git/tidy-info-stats/")
 book_words %>% group_by(word) %>% calculateTfidf(vars(book), n) %>% arrange(desc(length_normalised_tfidf))
 ```
-
+```{r}
+glimpse(book_words)
+tdm_book_words = tidytext::cast_tdm(book_words, word, book, n)
+```

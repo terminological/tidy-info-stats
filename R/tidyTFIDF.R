@@ -145,7 +145,7 @@ calculateTfidf = function(groupedDf, sampleVars, countVar=NULL, idfDf=NULL, k1 =
 					sum_sq = sqrt(sum(okapi_bm25^2, na.rm=TRUE))
 			) %>% mutate(
 					norm_okapi_bm25 = okapi_bm25/sum_sq
-			) %>% compute(index=indexList)
+			)
 	
 	return(tmp %>% group_by(!!!grps))
 }

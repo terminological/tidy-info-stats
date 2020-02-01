@@ -75,7 +75,7 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar
 	
 	# the knn approach without using neighbours - i.e. a k wide sliding window
 	tmp4 = tmp %>% group_by(!!!grps) %>% arrange(y_continuous) %>% mutate(rank = row_number())
-	tmp4 = tmp4  %>% group_by(!!!grps,!!!discreteVars) %>% arrange(y_continuous) %>% mutate(
+	tmp4 = tmp4  %>% group_by(!!!grps,!!!discreteVars) %>% arrange(rank) %>% mutate(
 			
 			# correct k for tails of distributions exclusive
 			# kRank = row_number(),
@@ -89,7 +89,7 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar
 			
 			# dont correct k & exclude tails
 			k = local(k_05)*2L,
-			m_i = ifelse(N_x < local(k_05)*2L+1L, NA, lead(rank,n=local(k_05))-lag(rank,n=local(k_05)))
+			m_i = ifelse( N_x < local(k_05)*2L+1L, NA, lead(rank,n=local(k_05))-lag(rank,n=local(k_05)) )
 	
 	)  
 	
@@ -251,24 +251,26 @@ calculateDiscreteContinuousMI_KNN = function(df, discreteVars, continuousVar, k_
 #' @export
 calculateDiscreteContinuousMI_Entropy = function(df, discreteVars, continuousVar, entropyMethod="Quantile", ...) {
 	grps = df %>% groups()
+	continuousVar = ensym(continuousVar)
 	outerJoinList = df %>% joinList(defaultJoin = "tmp_join")
 	
 	H_y = df %>% group_by(!!!grps) %>% 
 			calculateContinuousEntropy(!!continuousVar, method = entropyMethod, ...) %>% 
-			rename(I_y = I, I_y_sd = I_sd) %>% mutate(tmp_join = 1L)
+			rename(I_y = I, I_y_sd = I_sd) %>% mutate(tmp_join = 1L) %>% compute()
 	
 	H_y_given_x = df %>% 
 			group_by(!!!grps, !!!discreteVars) %>% 
 			calculateContinuousEntropy(!!continuousVar, method = entropyMethod, ...) %>% 
-			rename(N_x = N, I_given_x = I, I_given_x_sd = I_sd) %>% mutate(tmp_join = 1L)
+			rename(N_x = N, I_given_x = I, I_given_x_sd = I_sd) %>% mutate(tmp_join = 1L) %>% compute()
 	
-	tmp2 = H_y %>% left_join(tmp_H_y, by=outerJoinList) %>% select(-tmp_join)
+	tmp2 = H_y %>% left_join(H_y_given_x, by=outerJoinList) %>% select(-tmp_join) %>%
+	  mutate(p_x = N_x/N)
 	
 	tmp5 = tmp2 %>% 
 			group_by(!!!grps, N, I_y, I_y_sd) %>% 
 			summarise(
-					I = I_y - sum(p_x*I_given_x),
-					I_sd = I_y_sd + sum(p_x*I_given_x_sd),
+					I = max(I_y,na.rm=TRUE) - sum(p_x*I_given_x),
+					I_sd = max(I_y_sd,na.rm=TRUE) + sum(p_x*I_given_x_sd),
 					method = paste0("Entropy - ",entropyMethod)
 			) %>% 
 			select(-c(I_y,I_y_sd))
@@ -297,7 +299,7 @@ calculateDiscreteContinuousMI_PDF = function(df, discreteVars, continuousVar, pr
 	tmp2 = tmp %>%  
 			group_by(!!!grps,!!!discreteVars) %>% 
 			probabilitiesFromContinuous(y_continuous, minVar=y_min, maxVar=y_max, method=probabilityMethod, ...) %>%
-			rename(N_x = N, p_y_given_x=p_x, I_y_given_x = I_x)
+			rename(N_x = N, p_y_given_x=p_x, I_y_given_x = I_x)  %>% compute()
 	
 	tmp3 = tmp %>%
 			group_by(!!!grps) %>%

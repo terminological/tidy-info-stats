@@ -53,7 +53,7 @@ calculateContinuousEntropy_Quantile = function(df, continuousVar, k_05=10, ...) 
   tmp4 = tmp2 %>% summarise(
       N = max(N,na.rm = TRUE),
       I = sum(log_d_Q*(1.0/(N+1L)),na.rm = TRUE),
-      I_sd = NA,
+      I_sd = as.double(NA),
       method="Quantile"
   )
   
