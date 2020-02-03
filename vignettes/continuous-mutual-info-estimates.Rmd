@@ -136,9 +136,9 @@ Assume a continuous distribution
 
 ```{r}
 hb = ConditionalDistribution$new()
-hb$withDistribution(0.75, LogNormalDistribution$new(mode=12,var=2), "asymptomatic")
-hb$withDistribution(0.25, LogNormalDistribution$new(mode=8,var=3), "tired")
-hb$withDistribution(0.25, LogNormalDistribution$new(mode=4,var=5), "unwell")
+hb$withDistribution(LogNormalDistribution$new(mode=12,sd=2), "asymptomatic", 0.75)
+hb$withDistribution(LogNormalDistribution$new(mode=8,sd=3), "tired", 0.25)
+hb$withDistribution(LogNormalDistribution$new(mode=4,sd=5), "unwell", 0.25)
 hb$plot(0,20)
 
 ```
@@ -147,9 +147,9 @@ And another
 
 ```{r}
 k = ConditionalDistribution$new()
-k$withDistribution(0.125, NormalDistribution$new(mean=1,sd=0.5), "unwell")
-k$withDistribution(0.75, NormalDistribution$new(mean=2,sd=1), "asymptomatic")
-k$withDistribution(0.125, NormalDistribution$new(mean=8,sd=3), "tired")
+k$withDistribution(NormalDistribution$new(mean=1,sd=0.5), "unwell", 0.125)
+k$withDistribution(NormalDistribution$new(mean=2,sd=1), "asymptomatic", 0.75)
+k$withDistribution(NormalDistribution$new(mean=8,sd=3), "tired", 0.125)
 ```
 
 We can use the properties of the underlying distributions to calculate theoretical values for the Mean, Variance and Mutual Information
