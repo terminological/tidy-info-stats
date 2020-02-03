@@ -34,16 +34,19 @@ probabilitiesFromContinuous = function(df, continuousVar, method="Kernel", ...) 
 #' @return A mutated datatable with observations of X, the total number of observations of X (N), the probability density (p_x)
 #' @import dplyr
 #' @export
-probabilitiesFromContinuous_SGolay = function(df, continuousVar, k_05 = 10) {
+probabilitiesFromContinuous_SGolay = function(df, continuousVar, k_05 = 10,...) {
 	continuousVar = ensym(continuousVar)
 	grps = df %>% groups()
 	
 	# groupwise count creates an N and N_x  column based on groupVars, and countVar
-	df = df %>% mutate(tmp_x_continuous = !!continuousVar)
+	df = df %>% mutate(tmp_x_continuous = !!continuousVar) %>% arrange(tmp_x_continuous)
 	tmp2 = df %>%  group_by(!!!grps) %>% applySGolayFilter(tmp_x_continuous, d_x_d_r, k_05 = k_05, p=2, m=1)
 	tmp2 = tmp2 %>% mutate(
 	    p_x = 1.0/ifelse(d_x_d_r <= 0, NA, d_x_d_r)
-	) %>% select( -d_x_d_r )
+	) %>% select( -d_x_d_r ) %>%
+	  mutate(
+	    p_x = ifelse(N<(2*k_05+1),NA,p_x)
+	  )
 	
 	tmp2 = tmp2 %>% rename(!!continuousVar := tmp_x_continuous)
 	
@@ -64,7 +67,7 @@ probabilitiesFromContinuous_SGolay = function(df, continuousVar, k_05 = 10) {
 #' @return A mutated datatable with observations of X, the total number of observations of X (N), the probability density (p_x), and self information (I_x) associated with the value of X
 #' @import dplyr
 #' @export
-probabilitiesFromContinuous_Kernel = function(df, continuousVar, minVar=NULL, maxVar=NULL, collect=FALSE) {
+probabilitiesFromContinuous_Kernel = function(df, continuousVar, minVar=NULL, maxVar=NULL, collect=FALSE, ...) {
 	df = collectDf(df,collect)
 	continuousVar = ensym(continuousVar)
 	minVar = tryCatch(ensym(minVar),error = function(e) NULL)
@@ -77,7 +80,7 @@ probabilitiesFromContinuous_Kernel = function(df, continuousVar, minVar=NULL, ma
 	if (!identical(minVar,NULL)) {
 		df = df %>% mutate(tmp_x_min = !!minVar)
 	} else {
-		df = df %>% mutate(tmp_x_min = min(tmp_x_continuous))
+		df = df %>% mutate(tmp_x_min = min(tmp_x_continuous, na.rm = TRUE))
 	}
 	
 	if (!identical(maxVar,NULL)) {
@@ -86,13 +89,13 @@ probabilitiesFromContinuous_Kernel = function(df, continuousVar, minVar=NULL, ma
 		df = df %>% mutate(tmp_x_max = max(tmp_x_continuous, na.rm = TRUE))
 	}
 	
-	tmp2 = df %>% group_by(!!!grps) %>% group_modify(
-			function(d,...) {
-				dens = density(d$tmp_x_continuous, bw="nrd0", kernel="gaussian", from=min(d$tmp_x_min,na.rm = TRUE), to=max(d$tmp_x_max,na.rm = TRUE), n=512)
+	tmp2 = df %>% group_by(!!!grps, tmp_x_min, tmp_x_max) %>% group_modify(
+			function(d,g,...) {
+				dens = density(d$tmp_x_continuous, bw="nrd0", kernel="gaussian", from=g$tmp_x_min, to=g$tmp_x_max, n=512)
 				originalSize = max(d$N,na.rm = TRUE)
 				return(
 						tibble(
-								N = originalSize,
+								N = 512,
 								tmp_x_continuous = dens$x,
 								p_x = dens$y
 						)

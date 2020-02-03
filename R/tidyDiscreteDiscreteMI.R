@@ -43,29 +43,28 @@ calculateDiscreteDiscreteMI_Empirical = function(df, groupXVars, groupYVars, ...
 calculateDiscreteDiscreteMI_Entropy = function(df, groupXVars, groupYVars, entropyMethod="Grassberger", ...) {
   grps = df %>% groups()
   joinList = df %>% joinList(defaultJoin = "join")
-  # list of join variables for join by value
-  groupJoinList = df %>% joinList(groupXVars)
   
-  Hy = df %>% group_by(!!!grps) %>% 
+  H_y = df %>% group_by(!!!grps) %>% 
     calculateDiscreteEntropy(groupYVars, method = entropyMethod, ...) %>% 
     rename(I_y = I, I_y_sd = I_sd) %>% mutate(join = 1)
   
-  Hygivenx = df %>% group_by(!!!grps, !!!groupXVars) %>% 
+  H_y_given_x = df %>% group_by(!!!grps, !!!groupXVars) %>% 
     calculateDiscreteEntropy(groupYVars, method = entropyMethod, ...) %>% 
     rename(N_x = N, I_given_x = I, I_given_x_sd = I_sd) %>% mutate(join = 1)
   
   suppressWarnings({
-    tmp2 = Hygivenx %>% left_join(Hy, by=joinList) %>% mutate(p_x = as.double(N_x)/N) %>% group_by(!!!grps, N, I_y, I_y_sd) %>% summarise(
+    tmp2 = H_y_given_x %>% left_join(H_y, by=joinList) %>% mutate(p_x = as.double(N_x)/N) %>% group_by(!!!grps, N, I_y, I_y_sd) %>% summarise(
+      na_check = sum(ifelse(is.na(I_given_x),1,0)),
       I_given_x = sum(I_given_x*p_x,na.rm = TRUE), 
 			I_given_x_sd = sum(I_given_x_sd*p_x,na.rm = TRUE)
     	) # sometimes max term has no non NA values. In which case this is NAl, which is ok but generates a warning
   })
   
   tmp2 = tmp2 %>% mutate(
-    I = I_y - I_given_x, 
-    I_sd = as.numeric(I_y_sd - I_given_x_sd),
+    I = ifelse(na_check == 0, I_y - I_given_x, NA),
+    I_sd = ifelse(na_check == 0, I_y_sd + I_given_x_sd, NA),
     method =  paste0("Entropy - ",entropyMethod)
-  ) %>% ungroup() %>% select(!!!grps, N, I, I_sd, method)
+  ) %>% ungroup() %>% select(!!!grps, N, I, I_sd, method) %>% mutate(I = as.double(I), I_sd = as.double(I_sd))
   
   # browser()
   return(tmp2)

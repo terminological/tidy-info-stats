@@ -263,19 +263,25 @@ calculateDiscreteContinuousMI_Entropy = function(df, discreteVars, continuousVar
 			calculateContinuousEntropy(!!continuousVar, method = entropyMethod, ...) %>% 
 			rename(N_x = N, I_given_x = I, I_given_x_sd = I_sd) %>% mutate(tmp_join = 1L) %>% compute()
 	
-	tmp2 = H_y %>% left_join(H_y_given_x, by=outerJoinList) %>% select(-tmp_join) %>%
-	  mutate(p_x = N_x/N)
+	#tmp2 = H_y %>% left_join(H_y_given_x, by=outerJoinList) %>% select(-tmp_join) %>%
+	#  mutate(p_x = N_x/N)
 	
-	tmp5 = tmp2 %>% 
-			group_by(!!!grps, N, I_y, I_y_sd) %>% 
-			summarise(
-					I = max(I_y,na.rm=TRUE) - sum(p_x*I_given_x),
-					I_sd = max(I_y_sd,na.rm=TRUE) + sum(p_x*I_given_x_sd),
-					method = paste0("Entropy - ",entropyMethod)
-			) %>% 
-			select(-c(I_y,I_y_sd))
+	suppressWarnings({
+	  tmp2 = H_y_given_x %>% left_join(H_y, by=outerJoinList) %>% mutate(p_x = as.double(N_x)/N) %>% group_by(!!!grps, N, I_y, I_y_sd) %>% summarise(
+	    na_check = sum(ifelse(is.na(I_given_x),1,0)),
+	    I_given_x = sum(I_given_x*p_x,na.rm = TRUE), 
+	    I_given_x_sd = sum(I_given_x_sd*p_x,na.rm = TRUE)
+	  )
+	})
 	
-	return(tmp5)
+	tmp2 = tmp2 %>% mutate(
+	  I = ifelse(na_check == 0, I_y - I_given_x, NA),
+	  I_sd = ifelse(na_check == 0, I_y_sd + I_given_x_sd, NA),
+	  method =  paste0("Entropy - ",entropyMethod)
+	) %>% ungroup() %>% select(!!!grps, N, I, I_sd, method) %>% mutate(I = as.double(I), I_sd = as.double(I_sd))
+	
+	return(tmp2)
+	
 }
 
 #' calculate mutual information between a categorical value (X) and a continuous value (Y) using an estimator of PDF
@@ -322,7 +328,7 @@ calculateDiscreteContinuousMI_PDF = function(df, discreteVars, continuousVar, pr
 	
 	tmp6 = tmp5 %>% group_by(!!!grps,N) %>% summarise (
 			I = sum(d_I_d_xy,na.rm=TRUE), # this does the sum over x & y
-			I = NA,
+			I_sd = as.double(NA),
 			method = paste0("PDF - ",probabilityMethod)
 	)
 	return(tmp6)

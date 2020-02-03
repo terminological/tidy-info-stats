@@ -15,6 +15,12 @@ calculateContinuousEntropy = function(df, continuousVar, method, ...) {
   )
 }
 
+# N.B.
+# http://thirdorderscientist.org/homoclinic-orbit/2013/5/8/bridging-discrete-and-differential-entropy
+# essentially the adjustment to convert between continuous and discrete is +log(range_of_bins/bins) - 
+# but in the normal case the range is infinite unless you ignore the first and last bin 
+# therefore +log(range_of_bins/(bins-2))
+
 # TODO:
 # If there a method involving horizontal visibility?
 # https://stats.stackexchange.com/questions/97676/kozachenko-leonenko-entropy-estimation - 
@@ -44,17 +50,21 @@ calculateContinuousEntropy_Quantile = function(df, continuousVar, k_05=10, ...) 
   tmp = df %>% group_by(!!!grps) %>% mutate(
     N = n(),
     y_continuous = !!continuousVar
-  )
+  ) %>% arrange(y_continuous)
   
-  tmp2 = tmp %>%  group_by(!!!grps) %>% applySGolayFilter(y_continuous, d_Q_d_p, k_05 = k_05) %>% mutate(
+  tmp2 = tmp %>%  group_by(!!!grps) %>% applySGolayFilter(y_continuous, d_Q_d_p, k_05 = k_05, p=2, m=1) %>% mutate(
     log_d_Q = log(ifelse(d_Q_d_p <= 0, NA, d_Q_d_p))
+    #TODO: fix this - missing values mess this up - tends to 0 for small values.
   ) 
   
   tmp4 = tmp2 %>% summarise(
       N = max(N,na.rm = TRUE),
-      I = sum(log_d_Q*(1.0/(N+1L)),na.rm = TRUE),
+      #TODO: fix this - missing values mess this up - tends to 0 for small values.
+      I = mean(log_d_Q,na.rm = TRUE),
       I_sd = as.double(NA),
       method="Quantile"
+  ) %>% mutate(
+    I = ifelse(N<(2*k_05+1),NA,I)
   )
   
   return(tmp4)
@@ -72,7 +82,7 @@ calculateContinuousEntropy_Quantile = function(df, continuousVar, k_05=10, ...) 
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateContinuousEntropy_PDF = function(df, continuousVar, probabilityMethod="Kernel", ...) {
+calculateContinuousEntropy_PDF = function(df, continuousVar, probabilityMethod="SGolay", ...) {
 	
 	grps = df %>% groups()
 	continuousVar = ensym(continuousVar)
@@ -85,13 +95,20 @@ calculateContinuousEntropy_PDF = function(df, continuousVar, probabilityMethod="
 			probabilitiesFromContinuous(x_continuous, method=probabilityMethod, ...) %>%
 			mutate(p_x_I_x = ifelse(p_x <= 0, 0, -p_x*log(p_x)))
 	
-	tmp3 = tmp2 %>% group_by(!!!grps, N) %>% arrange(x_continuous) %>% mutate(
+	tmp2 = tmp2 %>% group_by(!!!grps, N) %>% arrange(x_continuous) %>% mutate(
 			d_I_d_x = (p_x_I_x+lag(p_x_I_x,1,default=0))*as.double(x_continuous-lag(x_continuous))/2
-		) %>% summarise(
+		) 
+	
+	tmp3 = tmp2 %>% summarise(
+		  na_check = sum(ifelse(is.na(d_I_d_x),1,0)),
 			I = sum(d_I_d_x,na.rm=TRUE),
-			I_sd = NA,
+			I_sd = as.double(NA),
 			method = paste0("PDF - ",probabilityMethod)
-		)
+	) 
+	# browser()
+	tmp3 = tmp3 %>% mutate(
+		  I = ifelse(na_check > 1,NA,I)
+	)
 	
 	return(tmp3)
 	

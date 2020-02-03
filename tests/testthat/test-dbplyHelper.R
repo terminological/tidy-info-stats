@@ -1,4 +1,4 @@
-context("String length")
+context("DBPlyr consistency")
 message("Tests started")
 library(tidyinfostats)
 
@@ -15,6 +15,14 @@ tidyUSASQL = con %>% copy_to(tidyUSArrests())
 test_that("collect as sparse matrix matches input", {
   out = tidyUSA %>% collectAsSparseMatrix(sample,feature,value)
   expect_equal(unname(out[,"Murder"]),USArrests$Murder)
+})
+
+test_that("outcome vector matches expectation",{
+  
+  expect_equal(
+    testData %>% collectOutcomeVector(sample,outcome),
+    testDataSQL %>% collectOutcomeVector(sample,outcome)
+  )
 })
 
 ### Group mutate ----
@@ -49,43 +57,74 @@ describe("dbplyr results same as local data frames", {
     tmp = testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "SGolay")
     tmp2 = testDataSQL %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "SGolay") %>% collect()
     expect_equal(tmp$I, tmp2$I, tolerance=0.001)
-    expect_equal(tmp$I_sd, tmp2$I_sd, tolerance=0.001)
+    
   })
   
   it("produces same result for discretisation by value", {
-    tmp = testData %>% group_by(feature) %>% tidyinfostats::discretise(value, value_discrete, bins=3, method = "ByValue")
+    tmp = testData %>% group_by(feature) %>% tidyinfostats::discretise(value, value_discrete, bins=3, method = "ByValue", noUnicode=TRUE)
     tmp2 = testDataSQL %>% group_by(feature) %>% tidyinfostats::discretise(value, value_discrete, bins=3, method = "ByValue") %>% collect()
-    expect_equal(tmp$I, tmp2$I, tolerance=0.001)
-    expect_equal(tmp$I_sd, tmp2$I_sd, tolerance=0.001)
+    expect_equal(tmp$value_discrete, tmp2$value_discrete)
   })
   
   it("produces same result for MI by discretisation by rank - histogram", {
-    tmp = testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByRank", bins=100)
+    tmp = testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByRank", bins=100, noUnicode=TRUE)
     tmp2 = testDataSQL %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByRank", bins=100) %>% collect()
     expect_equal(tmp$I, tmp2$I, tolerance=0.001)
-    expect_equal(tmp$I_sd, tmp2$I_sd, tolerance=0.001)
+    
   })
   
   it("produces same result for MI by discretisation by value - grassberger", {
     tmp = testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByValue", mutualInfoMethod = "Grassberger")
     tmp2 = testDataSQL %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByValue", mutualInfoMethod = "Grassberger")
     expect_equal(tmp$I, tmp2$I, tolerance=0.001)
-    expect_equal(tmp$I_sd, tmp2$I_sd, tolerance=0.001)
+    
   })
   
   it("produces same result for PDF estimation - SGolay", {
     tmp = testData %>% group_by(feature,outcome) %>% probabilitiesFromContinuous(value, method="SGolay")
-    tmp2 = testDataSQL %>% group_by(feature,outcome) %>% probabilitiesFromContinuous(value, method="SGolay")
-    expect_equal(tmp$I, tmp2$I, tolerance=0.001)
-    expect_equal(tmp$I_sd, tmp2$I_sd, tolerance=0.001)
+    tmp2 = testDataSQL %>% group_by(feature,outcome) %>% probabilitiesFromContinuous(value, method="SGolay") %>% collect()
+    expect_equal(tmp$p_x, tmp2$p_x, tolerance=0.001)
   })
   
 })
 
 
 
-#### Entropy ----
-test_that("entropy calculations match infotheo", {
-  fail()
+#### SGolay ----
+describe("sgolay calculations match signal", {
+  testDf = tibble(x=2*pi*c(0:100)/100) %>% mutate(y=sin(x))
+  testDfSQL = con %>% copy_to(testDf)
+  
+  it("works for local dataframes, differentiation", {
+    tmp = testDf %>% applySGolayFilter(y, y_est, k_05=3, p=2, m=1) %>% collect()
+    expect_equal(tmp$y_est, signal::sgolayfilt(x = testDf$y, p = 2, n = 7, m = 1, ts=1/101), tolerance=0.00001)
+  })
+
+  it("works for remote tables, differentiation", {
+    tmp = testDfSQL %>% applySGolayFilter(y, y_est, k_05=3, p=2, m=1) %>% collect()
+    expect_equal(tmp$y_est, signal::sgolayfilt(x = testDf$y, p = 2, n = 7, m = 1, ts=1/101), tolerance=0.00001)
+  })
+  
+  it("works for remote tables, smoothing", {
+    tmp = testDfSQL %>% applySGolayFilter(y, y_est, k_05=5, p=2, m=0) %>% collect()
+    expect_equal(tmp$y_est, signal::sgolayfilt(x = testDf$y, p = 2, n = 11, m = 0, ts=1/101), tolerance=0.00001)
+  })
+  
+})
+
+#### Digamma ----
+describe("digamma calculations match base", {
+  testDf = tibble(x=c(1:1000))
+  testDfSQL = con %>% copy_to(testDf, overwrite=TRUE)
+  
+  it("works for local dataframes" ,{
+    tmp = testDf %>% calculateDigamma(x, dgx)
+    expect_equal(tmp$dgx, digamma(tmp$x), tolerance = 0.001)
+  })
+  
+  it("works for remote dataframes" ,{
+    tmp = testDfSQL %>% calculateDigamma(x, dgx) %>% collect()
+    expect_equal(tmp$dgx, digamma(tmp$x), tolerance = 0.001)
+  })
 })
 

@@ -1,15 +1,17 @@
 
 #' tidy dataframe of the USArrests data
 #' 
+#' @import dplyr
 #' @export
 tidyUSArrests = function() {
   USArrests %>% 
     mutate(sample = rownames(USArrests)) %>%
-    pivot_longer(-sample, names_to = "feature", values_to = "value")
+    tidyr::pivot_longer(-sample, names_to = "feature", values_to = "value")
 }
 
 #' tidy dataframe of the USArrests data with co-occurence of features
 #' 
+#' @import dplyr
 #' @export
 tidyUSArrestsCooccurrence = function() {
   lhs = tidyUSArrests() %>% rename(feature1=feature, value1=value)
@@ -19,15 +21,17 @@ tidyUSArrestsCooccurrence = function() {
 
 #' tidy dataframe of the USArrests data
 #' 
+#' @import dplyr
 #' @export
 tidyDiscreteUSArrests = function() {
   infotheo::discretize(USArrests) %>% 
     mutate(sample = rownames(USArrests)) %>%
-    pivot_longer(-sample, names_to = "feature", values_to = "value")
+    tidyr::pivot_longer(-sample, names_to = "feature", values_to = "value")
 }
 
 #' tidy dataframe of the USArrests data with co-occurence of features
 #' 
+#' @import dplyr
 #' @export
 tidyDiscreteUSArrestsCooccurrence = function() {
   lhs = tidyDiscreteUSArrests() %>% rename(feature1=feature, value1=value)
@@ -38,6 +42,7 @@ tidyDiscreteUSArrestsCooccurrence = function() {
 
 #' tidy dataframe of the simulation of blood test results with known distributions for individual outcomes.
 #' 
+#' @import dplyr
 #' @export
 bloodResultsSimulation = function(n,seed = 101) {
 

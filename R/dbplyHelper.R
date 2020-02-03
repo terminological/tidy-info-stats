@@ -34,29 +34,68 @@ groupMutate = function(df, ...) {
   }
 }
 
-#' Renames groups extending accross multiple columns
+#' Renames groups extending accross multiple columns do that subgroups have sequentail id
 #' 
 #' Sometime simpler to rename multiple grouping columns as one single column which encodes all the possible combinations.
 #'  
-#' @param df - a df which may be grouped
-#' @param groupVars - the columns(s) for which we want to create a label - as a list of columns quoted by vars(...)
-#' @param outputVar - the name of the target column for the new discrete variable
+#' @param df - a df which may be grouped in which case the grouping can be interpreted as a feature and each group must have the same number in it.
+#' @param groupVars - the columns(s) for which we want to create a label - as a list of columns quoted by vars(...).
+#' @param outputVar - the name of the target column for the new discrete variable (or sample identifier)
 #' @param summarise - return dataframe as-is with additional column (FALSE - the default) or return dataframe as group summary with only grouping info and output (TRUE)
+#' @param consistentBetweenGroups - if the groups represent discrete variables that vary between groups then they are not comparable. 
 #' @return a dbplyr dataframe containing the grouped function
 #' @export
-labelGroup = function(df, groupVars, outputVar, summarise=FALSE) {
+labelGroup = function(df, groupVars, outputVar, summarise=FALSE, consistentBetweenGroups=FALSE) {
   outputVar = ensym(outputVar)
   grps = df %>% groups()
 
-  tmp = df %>% select(!!!grps,!!!groupVars) %>% distinct() %>%
-    group_by(!!!grps) %>% arrange(!!!groupVars) %>% mutate(!!outputVar := row_number()) 
-
-  if (summarise) {
-    return(tmp)
+  if (consistentBetweenGroups) {
+    
+    tmp = df %>% select(!!!groupVars) %>% distinct() %>%
+      arrange(!!!groupVars) %>% mutate(!!outputVar := row_number()) 
+    
+    if (summarise) {
+      return(tmp)
+    } else {
+      joinList = df %>% ungroup() %>% joinList(groupVars)
+      return(df %>% left_join(tmp,by=joinList))
+    }
+    
   } else {
-    joinList = df %>% joinList(groupVars)
-    return(df %>% left_join(tmp,by=joinList))
+    
+    tmp = df %>% select(!!!grps,!!!groupVars) %>% distinct() %>%
+      group_by(!!!grps) %>% arrange(!!!groupVars) %>% mutate(!!outputVar := row_number()) 
+    
+    if (summarise) {
+      return(tmp)
+    } else {
+      joinList = df %>% joinList(groupVars)
+      return(df %>% left_join(tmp,by=joinList))
+    }
+    
   }
+  
+  
+}
+
+
+#' Create an id based for each sample based on a unique combination of variables
+#' 
+#' Sometime simpler to rename multiple grouping columns as one single column which encodes all the possible combinations.
+#'  
+#' @param df - a df which may be grouped in which case the grouping can be interpreted as a feature and each group must have the same number in it.
+#' @param groupVars - the columns(s) for which we want to create a label - as a list of columns quoted by vars(...). Essentially a combination of discrete variables. i.e. identifies each sample.
+#' @param sampleIdVar - the name of the target column for the new discrete variable (or sample identifier)
+#' @return a dbplyr dataframe containing the grouped function
+#' @export
+createSequentialIdentifier = function(df, groupVars, sampleIdVar) {
+  outputVar = ensym(outputVar)
+  grps = df %>% groups()
+  
+  tmp = df %>% select(!!!groupVars) %>% distinct() %>% arrange(!!!groupVars) %>% mutate(!!outputVar := row_number()) 
+  
+  joinList = df %>% ungroup() %>% joinList(groupVars)
+  return(df %>% left_join(tmp,by=joinList))
 }
 
 
@@ -134,28 +173,21 @@ collectAsSparseMatrix = function(df, rowVar, colVar, valueVar=NULL, rowNameVar=N
 #' 
 #' @param df - a df
 #' @param rowVar - the dataframe columns(s) which define the matrix row, quoted by vars(...) - typically this is the observation id
-#' @param colVar - the dataframe columns(s) which define the matrix columns, quoted by vars(...) - typically this is the feature id
-#' @param valueVar - the name of the value variable. (#TODO could be missing - in which case use binary)
-#' @param rowNameVar - (optional) the dataframe column continaing the row names otherwise use rowVar
-#' @param colNameVar - (optional) the dataframe column continaing the column names otherwise use colVar
-#' @param ... - other parameters passes to Matrix::sparseMatrix
+#' @param outcomeVar - (optional) the dataframe column continaing the outcome
+#' @param factorise - convert outcomeVar to a factor (default FALSE)
+#' @param ... - other parameters passed to as.factor
 #' @return a dbplyr dataframe containing the grouped function
 #' @export
-collectOutcomeVector = function(df, rowVar, outcomeVar, outcomeNameVar=NULL, ...) {
+collectOutcomeVector = function(df, rowVar, outcomeVar, factorise = TRUE, ...) {
   rowVar = ensym(rowVar)
   outcomeVar = ensym(outcomeVar)
-  outcomeNameVar = tryCatch(ensym(outcomeNameVar), error=function(e) NULL)
   df = df %>% ungroup()
   
-  # group data by rowVar and generate a sequential row_id and label
-  if (identical(outcomeNameVar,NULL)) {
-    rows = df %>% select(!!rowVar, !!outcomeVar) %>% distinct() %>% arrange(!!rowVar)
-    outcomeVector = rows %>% pull(!!outcomeVar)
-  } else {
-    rows = df %>% group_by(!!rowVar, !!outcomeVar) %>% summarise(tmp_label = min(!!outcomeNameVar)) %>% arrange(!!rowVar)
-    outcomeVector = rows %>% pull(!!outcomeVar)
-    outcomeLabels = rows %>% pull(tmp_label)
-    names(outcomeVector) = outcomeLabels
+  rows = df %>% select(!!rowVar, !!outcomeVar) %>% distinct() %>% arrange(!!rowVar)
+  
+  outcomeVector = rows %>% pull(!!outcomeVar)
+  if (factorise) {
+    outcomeVector = as.factor(outcomeVector, ...)
   }
   
   return(outcomeVector)
@@ -306,6 +338,7 @@ coefficientAdj = function(sgolayTable, sampleSizeVar, derivative, supportRange=1
 #' @param m - the mth derivative
 #' @return a summarised dataframe including group info, the continuous variable and an output variable representing the filtered value
 #' @export
+#' TODO: some form of support range for each group (currently fixed from 0 to 1)
 applySGolayFilter = function(df, continuousVar, outputVar, k_05, p, m) {
   # k_05=2
   # df = tibble(group = sample.int(4,size=100,replace=TRUE), value=rnorm(100)) %>% group_by(group)
@@ -317,9 +350,10 @@ applySGolayFilter = function(df, continuousVar, outputVar, k_05, p, m) {
   if ("tbl_sql" %in% class(df)) {
     
     # a dbplyr table - copy sgolay coefficients to database
-    df = df %>% arrange(!!continuousVar) %>% mutate(
+    df = df %>% mutate(
       tmp_id=row_number(),
       N = n(),
+      tmp_value = !!continuousVar,
       k_05 = k_05 # ifelse(N<7,NA,ifelse(k_05<floor((N-1)/2),k_05,floor((N-1)/2)))
     ) %>% mutate(
       maxSelector = ifelse(tmp_id<=(k_05*2+1),tmp_id-1,k_05),
@@ -335,19 +369,19 @@ applySGolayFilter = function(df, continuousVar, outputVar, k_05, p, m) {
     tmp = df %>% left_join(coeff, by="tmp_join", copy=TRUE) %>% select(-tmp_join) %>% 
       filter(maxSelector>=selector & minSelector<=selector) %>% 
       mutate(
-        sample = tmp_id-selector,
+        sample = tmp_id-selector) %>%
+      mutate(
         position_match = ifelse(sample<=k_05, sample-k_05-1, ifelse(sample>(N-k_05),k_05-(N-sample),0))
       ) %>% filter(position == position_match) %>% compute()
     
     # coefficients are groupwise adjusted for sample size which may vary between group
     tmp = tmp %>% coefficientAdj(N, derivative = m)
     
-    
     tmp2 = tmp %>% group_by(!!!grps,sample) %>% summarise(
       N = max(N,na.rm = TRUE), 
       k_05 = max(k_05,na.rm = TRUE),
-      !!outputVar := sum(coefficientAdj*value, na.rm = TRUE), 
-      !!continuousVar := sum(value*ifelse(tmp_id==sample,1.0,0.0), na.rm = TRUE)
+      !!outputVar := sum(coefficientAdj*tmp_value, na.rm = TRUE), 
+      !!continuousVar := sum(tmp_value*ifelse(tmp_id==sample,1.0,0.0), na.rm = TRUE)
     ) %>% mutate(
       !!outputVar := ifelse(N<(k_05*2+1),NA,!!outputVar)
     ) %>% compute()
@@ -357,18 +391,18 @@ applySGolayFilter = function(df, continuousVar, outputVar, k_05, p, m) {
   } else {
     
     # Not a dplyr table - use signal::sgolayfilt
-    out = df %>% rename(tmp_x_continuous = !!continuousVar) %>%  group_by(!!!grps) %>% arrange(tmp_x_continuous) %>% group_modify(
+    out = df %>% rename(tmp_x_continuous = !!continuousVar) %>%  group_by(!!!grps) %>% group_modify(
       function(d,...) {
         k = k_05*2+1
         samples = nrow(d)
         # if (k >= samples) k = samples-samples%%2-1
         if (k < samples-1) {
-          d_x_d_r = signal::sgolayfilt(d$tmp_x_continuous, p=p, n=k, m=m, ts=1.0/samples)
+          temp_est = signal::sgolayfilt(d$tmp_x_continuous, p=p, n=k, m=m, ts=1.0/samples)
           return(
             tibble(
               N = samples,
               !!continuousVar := d$tmp_x_continuous,
-              !!outputVar := d_x_d_r # prevent negative gradient - d_x_d_r is an inverse cdf - always positive
+              !!outputVar := temp_est
             )
           )
         } else {

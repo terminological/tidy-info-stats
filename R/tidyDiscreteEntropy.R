@@ -66,7 +66,8 @@ calculateDiscreteEntropy_MontgomerySmith = function(df, groupVars, orderingVar =
     #k2 = lead(rank,2,NA)-rank, would need digamma calc & average
     #k3 = lead(rank,3,NA)-rank,
     NX = n()
-  ) %>% mutate(k = ifelse(is.na(k), NX-rank+1, k))
+  ) 
+  # %>% mutate(k = ifelse(is.na(k), NX-rank+1, k))
   # if k is not known assume that it is the next one. This "fills in" unknown values
   
   # digamma(n) = Harmonic(n-1)-lambda
@@ -84,7 +85,7 @@ calculateDiscreteEntropy_MontgomerySmith = function(df, groupVars, orderingVar =
     # H = (mean(digammak, na.rm=TRUE) + lambda), #-digammaC_x+log(C_x), na.rm=TRUE) + lambda),
     I = mean(Hx, na.rm=TRUE),
     # H_sd = sd(digammak, na.rm=TRUE)/sqrt(max(N, na.rm=TRUE)) #-digammaC_x+log(C_x), na.rm=TRUE)
-    I_sd = sd(Hx, na.rm=TRUE)/sqrt(N), #-digammaC_x+log(C_x), na.rm=TRUE)
+    I_sd = sd(Hx, na.rm=TRUE), #-digammaC_x+log(C_x), na.rm=TRUE)
     method = "MontgomerySmith" 
   )  
   
@@ -176,21 +177,13 @@ calculateDiscreteEntropy_InfoTheo = function(df, groupVars, infoTheoMethod="mm",
   # groupVars = ensyms(groupVars)
   
   groupsJoin = as.vector(sapply(groupVars,as_label))
-  groupIds = df %>% ungroup() %>% select(!!!groupVars) %>% distinct() %>% arrange(!!!groupVars) %>% mutate(
-    # raw_x = TODO convert groupVars to integer... Doesn't matter how - ignores groups even, although maybe shouldn't
-    x_int = row_number()
-  )
   
-  tmp = df %>% ungroup() %>% group_by(!!!grps) %>% #mutate(
-    #N = n(),
-    #C_x = n_distinct(!!!groupVars),
-    # raw_x = TODO convert groupVars to integer... Doesn't matter how - ignores groups even, although maybe shouldn't
-  #) %>% 
-    left_join(groupIds, by = groupsJoin)
+  tmp = df %>% labelGroup(groupVars, tmp_x_int)
   
-  tmp2 = tmp %>% ungroup() %>% group_by(!!!grps,N) %>% group_modify(function(d,...) {
+  tmp2 = tmp %>% ungroup() %>% group_by(!!!grps) %>% group_modify(function(d,...) {
     tibble(
-      I = infotheo::entropy(d$x_int, method=infoTheoMethod),
+      N = nrow(d),
+      I = infotheo::entropy(d$tmp_x_int, method=infoTheoMethod),
       I_sd = as.double(NA),
       method = "InfoTheo"
     )
