@@ -7,7 +7,7 @@
 calculateContinuousEntropy_PDF(
   df,
   continuousVar,
-  probabilityMethod = "Kernel",
+  probabilityMethod = "SGolay",
   ...
 )
 }

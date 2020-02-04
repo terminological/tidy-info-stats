@@ -2,18 +2,26 @@
 % Please edit documentation in R/dbplyHelper.R
 \name{labelGroup}
 \alias{labelGroup}
-\title{Renames groups extending accross multiple columns}
+\title{Renames groups extending accross multiple columns do that subgroups have sequentail id}
 \usage{
-labelGroup(df, groupVars, outputVar, summarise = FALSE)
+labelGroup(
+  df,
+  groupVars,
+  outputVar,
+  summarise = FALSE,
+  consistentBetweenGroups = FALSE
+)
 }
 \arguments{
-\item{df}{- a df which may be grouped}
+\item{df}{- a df which may be grouped in which case the grouping can be interpreted as a feature and each group must have the same number in it.}
 
-\item{groupVars}{- the columns(s) for which we want to create a label - as a list of columns quoted by vars(...)}
+\item{groupVars}{- the columns(s) for which we want to create a label - as a list of columns quoted by vars(...).}
 
-\item{outputVar}{- the name of the target column for the new discrete variable}
+\item{outputVar}{- the name of the target column for the new discrete variable (or sample identifier)}
 
 \item{summarise}{- return dataframe as-is with additional column (FALSE - the default) or return dataframe as group summary with only grouping info and output (TRUE)}
+
+\item{consistentBetweenGroups}{- if the groups represent discrete variables that vary between groups then they are not comparable.}
 }
 \value{
 a dbplyr dataframe containing the grouped function

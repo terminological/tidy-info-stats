@@ -89,10 +89,10 @@ labelGroup = function(df, groupVars, outputVar, summarise=FALSE, consistentBetwe
 #' @return a dbplyr dataframe containing the grouped function
 #' @export
 createSequentialIdentifier = function(df, groupVars, sampleIdVar) {
-  outputVar = ensym(outputVar)
+  sampleIdVar = ensym(sampleIdVar)
   grps = df %>% groups()
   
-  tmp = df %>% select(!!!groupVars) %>% distinct() %>% arrange(!!!groupVars) %>% mutate(!!outputVar := row_number()) 
+  tmp = df %>% select(!!!groupVars) %>% distinct() %>% arrange(!!!groupVars) %>% mutate(!!sampleIdVar := row_number()) 
   
   joinList = df %>% ungroup() %>% joinList(groupVars)
   return(df %>% left_join(tmp,by=joinList))

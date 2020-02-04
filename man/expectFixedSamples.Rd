@@ -9,7 +9,7 @@ expectFixedSamples(df, discreteVars, sampleCount, ...)
 \arguments{
 \item{df}{- may be grouped, in which case the value is interpreted as different features}
 
-\item{discreteVars}{- the column(s) of the categorical value (X) quoted by vars(...)}
+\item{discreteVars}{- the column(s) of the categorical value (X) quoted by vars(...) (usually the outcome)}
 
 \item{sampleCount}{- the number of samples per outcome (equal numbers).}
 }

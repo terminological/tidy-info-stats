@@ -27,43 +27,19 @@ calculateDiscreteBinaryMI =  function(df, discreteVars, countVar=NULL, method="G
 #' feture may not be present in a given document, and this absense may be assymetrically distributed between
 #' different classes. 
 #' 
-#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
-#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome
+#' @param df - may be grouped, in which case the value is interpreted as different types of variable (features)
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome)
 #' @param sampleVars - the column(s) of the sample identifier
-#' @param sampleCount - an integer containing the count of all samples per outcome (discreteVar)
-#' @param sampleCountDf - a dataframe containing columns for grouping, and discreteVars, N and N_x columns with counts
+#' @param sampleCount - an integer containing the count of all samples per outcome (discreteVars)
+#' @param sampleCountDf - a dataframe containing columns for df grouping (features), and discreteVars (outcomes), N and N_x columns with expected counts
 #' see expectSamplesByOutcome(...)
 #' @return a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteAbsentValuesMI = function(df, discreteVars, sampleVars=NULL, sampleCount=NULL, sampleCountDf=NULL, ...) {
-	if (identical(sampleVars,NULL) && identical(sampleCount,NULL) && identical(sampleCountDf,NULL)) stop("one of sampleVars, sampleCount, or sampleCountDf must be specified")
+calculateDiscreteAbsentValuesMI = function(df, discreteVars, sampleVars, sampleCount=NULL, sampleCountDf=NULL, ...) {
 	grps = df %>% groups()
-	outerJoinCols = df %>% joinList(discreteVars)
-	innerJoinCols = df %>% joinList(defaultJoin = "tmp_join")
-	if (identical(sampleCountDf,NULL)) {
-		if (!identical(sampleVars,NULL)) {
-			sampleCountDf = df %>% expectOnePerSample(discreteVars, sampleVars)
-		} else {
-			sampleCountDf = df %>% expectFixedSamples(discreteVars, sampleCount)
-		}	
-	}
 	
-	observedCount = df %>% groupwiseCount(discreteVars,summarise=TRUE) %>% rename(N_obs=N, N_x_obs=N_x)
-	
-	tmp = sampleCountDf %>% mutate(tmp_join=1L) %>%
-			rename(N_exp = N, N_x_exp = N_x) %>% 
-			left_join(
-					observedCount %>% select(-N_obs), by=outerJoinCols
-			) %>% mutate(
-					N_x_obs = ifelse(is.na(N_x_obs),0,N_x_obs)
-			) %>% left_join(
-					# this is needed to fill N_obs for missing columns
-					observedCount %>% select(!!!grps,N_obs) %>% distinct() %>% mutate(tmp_join=1L), by=innerJoinCols
-			) %>% mutate(
-					N_obs = ifelse(is.na(N_obs),0,N_obs)
-			)
-	
+	tmp = df %>% observedVersusExpected(discreteVars=discreteVars, sampleVars=sampleVars, sampleCount=sampleCount, sampleCountDf=sampleCountDf, ...)
 	
 	# this calculation uses the for of I(X,Y) given here:
 	# https://en.wikipedia.org/w/index.php?title=Mutual_information&action=edit&section=9
@@ -97,42 +73,18 @@ calculateDiscreteAbsentValuesMI = function(df, discreteVars, sampleVars=NULL, sa
 #' feature is only flagged as present in the samples. 
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
-#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome
-#' @param sampleVars - the column(s) of the sample identifier
+#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome)
+#' @param sampleVars - the column(s) of the sample identifier. From this we expect (at least) one outcome per sample
 #' @param sampleCount - an integer containing the count of all samples per outcome (discreteVar)
 #' @param sampleCountDf - a dataframe containing columns for grouping, and discreteVars, N and N_x columns with counts
 #' see expectSamplesByOutcome(...)
 #' @return a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscretePresentValuesMI = function(df, discreteVars, sampleVars=NULL, sampleCount=NULL, sampleCountDf=NULL, ...) {
-	if (identical(sampleVars,NULL) && identical(sampleCount,NULL) && identical(sampleCountDf,NULL)) stop("one of sampleVars, sampleCount, or sampleCountDf must be specified")
-	grps = df %>% groups()
-	outerJoinCols = df %>% joinList(discreteVars)
-	innerJoinCols = df %>% joinList(defaultJoin = "tmp_join")
-	if (identical(sampleCountDf,NULL)) {
-		if (!identical(sampleVars,NULL)) {
-			sampleCountDf = df %>% expectOnePerSample(discreteVars, sampleVars)
-		} else {
-			sampleCountDf = df %>% expectFixedSamples(discreteVars, sampleCount)
-		}	
-	}
+calculateDiscretePresentValuesMI = function(df, discreteVars, sampleVars, sampleCount=NULL, sampleCountDf=NULL, ...) {
 	
-	observedCount = df %>% groupwiseCount(discreteVars,summarise=TRUE) %>% rename(N_obs=N, N_x_obs=N_x)
-	
-	tmp = sampleCountDf %>% mutate(tmp_join=1L) %>%
-			rename(N_exp = N, N_x_exp = N_x) %>% 
-			left_join(
-					observedCount %>% select(-N_obs), by=outerJoinCols
-			) %>% mutate(
-					N_x_obs = ifelse(is.na(N_x_obs),0,N_x_obs)
-			) %>% left_join(
-					# this is needed to fill N_obs for missing columns
-					observedCount %>% select(!!!grps,N_obs) %>% distinct() %>% mutate(tmp_join=1L), by=innerJoinCols
-			) %>% mutate(
-					N_obs = ifelse(is.na(N_obs),0,N_obs)
-			)
-	
+  grps = df %>% groups()
+	tmp = df %>% observedVersusExpected(discreteVars=discreteVars, sampleVars=sampleVars, sampleCount=sampleCount, sampleCountDf=sampleCountDf, ...)
 	
 	# this calculation uses the for of I(X,Y) given here:
 	# https://en.wikipedia.org/w/index.php?title=Mutual_information&action=edit&section=9

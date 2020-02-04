@@ -2,32 +2,27 @@
 % Please edit documentation in R/missingValues.R
 \name{adjustMIForAbsentValues}
 \alias{adjustMIForAbsentValues}
-\title{calculate mutual information between a categorical value (X) and a continuous value (Y) where a total number of possible outcomes is known.}
+\title{Adjust mutual information calculation when values are missing.}
 \usage{
-adjustMIForAbsentValues(
-  df,
-  discreteVars,
-  mutualInformationFn,
-  sampleCountDf,
-  ...
-)
+adjustMIForAbsentValues(df, discreteVars, sampleVars, mutualInformationFn, ...)
 }
 \arguments{
 \item{df}{- may be grouped, in which case the value is interpreted as different types of continuous variable}
 
-\item{discreteVars}{- the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome}
+\item{discreteVars}{- the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome)}
+
+\item{sampleVars}{- the column(s) which uniquely identify the sample (e.g. person identifier)}
 
 \item{mutualInformationFn}{- the function that will calculate the unadjusted MI}
 
-\item{sampleCountDf}{- a dataframe containing colums for grouping, and discreteVars, N and N_x columns with counts
-see expectFixedSamples(...)}
-
-\item{...}{- the other parameters are passed onto the function specified in mutualInformationFn}
+\item{...}{- the other parameters are passed onto the function specified in mutualInformationFn and the observedVersusExpected(...) function. Particularly sampleCount or sampleCountDf}
 }
 \value{
 a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 }
 \description{
 This corrects normal mutual information calculations for information carried by the absense of a variable. This is relevant for 
-sparse data sets with many features such as NLP terms.
+sparse data sets with many features such as NLP terms. Unequal "missingness" of features can contain information about the outcomes.
+To deterimine whether a feature is missung for a given sample we need to make some assumptions. These are generally calculated
+from the data but can alternatively be specificied directly.
 }

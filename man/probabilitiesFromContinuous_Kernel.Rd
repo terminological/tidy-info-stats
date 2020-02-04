@@ -9,7 +9,8 @@ probabilitiesFromContinuous_Kernel(
   continuousVar,
   minVar = NULL,
   maxVar = NULL,
-  collect = FALSE
+  collect = FALSE,
+  ...
 )
 }
 \arguments{

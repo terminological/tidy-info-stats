@@ -4,7 +4,7 @@
 \alias{probabilitiesFromContinuous_SGolay}
 \title{Helper function to calculate probability from continuous data in a tidy friendly manner}
 \usage{
-probabilitiesFromContinuous_SGolay(df, continuousVar, k_05 = 10)
+probabilitiesFromContinuous_SGolay(df, continuousVar, k_05 = 10, ...)
 }
 \arguments{
 \item{df}{a dataframe containing a column of a continuous variable X and one row per observation, 

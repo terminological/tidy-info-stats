@@ -7,7 +7,7 @@
 calculateDiscretePresentValuesMI(
   df,
   discreteVars,
-  sampleVars = NULL,
+  sampleVars,
   sampleCount = NULL,
   sampleCountDf = NULL,
   ...
@@ -16,9 +16,9 @@ calculateDiscretePresentValuesMI(
 \arguments{
 \item{df}{- may be grouped, in which case the value is interpreted as different types of continuous variable}
 
-\item{discreteVars}{- the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome}
+\item{discreteVars}{- the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome)}
 
-\item{sampleVars}{- the column(s) of the sample identifier}
+\item{sampleVars}{- the column(s) of the sample identifier. From this we expect (at least) one outcome per sample}
 
 \item{sampleCount}{- an integer containing the count of all samples per outcome (discreteVar)}
 
