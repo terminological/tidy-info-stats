@@ -31,6 +31,7 @@ simulating a dataset with more than one feature requires some logic sampling
 \item \href{#method-withConditionalDistribution}{\code{MultivariableDistribution$withConditionalDistribution()}}
 \item \href{#method-withClassWeights}{\code{MultivariableDistribution$withClassWeights()}}
 \item \href{#method-sample}{\code{MultivariableDistribution$sample()}}
+\item \href{#method-plot}{\code{MultivariableDistribution$plot()}}
 \item \href{#method-clone}{\code{MultivariableDistribution$clone()}}
 }
 }
@@ -88,16 +89,27 @@ produce a set of samples conforming to these distributions
 }
 \subsection{Returns}{
 a data frame of samples (labelled x) associated with classes (labelled "class")
-#' @description plot this distributions as pdf and cdf
-#' @param xmin - the minimum of the support
-#' @param xmax - the maximum of the support
-#' @return a ggassemble plot object
-plot = function(xmin,xmax) {
-  out = self$getPdf(xmin=xmin,xmax=xmax)
-  pdfPlot = ggplot(out,aes(x=x,y=pxy,ymax=CDFxy,colour=y,fill=y))+geom_line(aes(y=px),colour="grey50")+geom_line()+geom_area(alpha=0.3,position="identity")+ylab("p(x\u2229y)")+theme(legend.position = "bottom",legend.direction = "vertical")
-  cdfPlot = ggplot(out,aes(x=x,y=CDFxy,colour=y))+geom_line(aes(y=CDFx),colour="grey50")+geom_line()+ylab("P(x\u2229y)")+theme(legend.position = "bottom",legend.direction = "vertical")
-  return(patchwork::wrap_plots(pdfPlot,cdfPlot,nrow=1))
 }
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-plot"></a>}}
+\subsection{Method \code{plot()}}{
+plot this distributions as pdf and cdf
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{MultivariableDistribution$plot()}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{xmin}}{- the minimum of the support}
+
+\item{\code{xmax}}{- the maximum of the support}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+a ggassemble plot object
 }
 }
 \if{html}{\out{<hr>}}

@@ -84,7 +84,6 @@ describe("handles moderate data", {
     result = collectResults(testData, reliable)
     theo = test$theoretical
     error = result %>% left_join(theo %>% rename(I_theo = I), by="feature") %>% mutate(error = abs((I-I_theo)/I_theo)) %>% pull(error)
-    browser()
     expect_true((error < 0.06) %>% reduce(`&&`))
   })
   
@@ -92,7 +91,6 @@ describe("handles moderate data", {
     result = collectResults(testData, unreliable)
     theo = test$theoretical
     error = result %>% left_join(theo %>% rename(I_theo = I), by="feature") %>% mutate(error = (I-I_theo)/I_theo) %>% pull(error)
-    browser()
     expect_true((error < 0.2) %>% reduce(`&&`))
   })
   

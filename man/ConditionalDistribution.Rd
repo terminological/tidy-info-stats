@@ -144,7 +144,10 @@ a datafram containing all classes
 \subsection{Method \code{plot()}}{
 plot this distributions as pdf and cdf
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ConditionalDistribution$plot(xmin, xmax)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ConditionalDistribution$plot(
+  xmin = self$theoreticalMean() - 3 * sqrt(self$theoreticalVariance()),
+  xmax = self$theoreticalMean() + 3 * sqrt(self$theoreticalVariance())
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
