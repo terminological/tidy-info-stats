@@ -126,7 +126,7 @@ collectAsSparseMatrix = function(df, rowVar, colVar, valueVar=NULL, rowNameVar=N
     rowLabels = rows %>% pull(!!rowVar)
   } else {
     rows = df %>% group_by(!!rowVar) %>% summarise(tmp_label = !!rowNameVar) %>% arrange(!!rowVar) %>% mutate(tmp_row_id = row_number())
-    rowLabels = rows %>% pull(tmp_label)
+    rowLabels = rows %>% pull(tmp_label) %>% make.unique(sep=" ")
   }
   
   # group data by colVar and generate a sequential col_id and label
@@ -135,7 +135,7 @@ collectAsSparseMatrix = function(df, rowVar, colVar, valueVar=NULL, rowNameVar=N
     colLabels = cols %>% pull(!!colVar)
   } else {
     cols = df %>% group_by(!!colVar) %>% summarise(tmp_label = min(!!colNameVar)) %>% arrange(!!colVar) %>% mutate(tmp_col_id = row_number())
-    colLabels = cols %>% pull(tmp_label)
+    colLabels = cols %>% pull(tmp_label) %>% make.unique(sep=" ")
   }
   
   if (identical(valueVar,NULL)) {
