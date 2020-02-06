@@ -30,9 +30,9 @@ calculateDiscreteContinuousMI = function(df, discreteVars, continuousVar, method
 			SGolay = calculateDiscreteContinuousMI_Entropy(df, discreteVars, {{continuousVar}}, entropyMethod="PDF", probabilityMethod = "SGolay", ...),
 			Kernel = calculateDiscreteContinuousMI_Entropy(df, discreteVars, {{continuousVar}}, entropyMethod="PDF", probabilityMethod = "Kernel", ...),
 			#PDF methods
-			PDF2 = calculateDiscreteContinuousMI_PDF(df, discreteVars, {{continuousVar}}, ...),
-			SGolay2 = calculateDiscreteContinuousMI_PDF(df, discreteVars, {{continuousVar}}, probabilityMethod = "SGolay", ...),
-			Kernel2 = calculateDiscreteContinuousMI_PDF(df, discreteVars, {{continuousVar}}, probabilityMethod = "Kernel", ...),
+			#PDF2 = calculateDiscreteContinuousMI_PDF(df, discreteVars, {{continuousVar}}, ...),
+			#SGolay2 = calculateDiscreteContinuousMI_PDF(df, discreteVars, {{continuousVar}}, probabilityMethod = "SGolay", ...),
+			#Kernel2 = calculateDiscreteContinuousMI_PDF(df, discreteVars, {{continuousVar}}, probabilityMethod = "Kernel", ...),
 			
 			{stop(paste0(method," not a valid option"))}
 	
@@ -66,7 +66,7 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar
 	continuousVar = ensym(continuousVar)
 	joinList = df %>% joinList(discreteVars)
 	
-	df = df %>% select(!!!grps,!!!discreteVars,!!continuousVar)
+	df = select(df, !!!grps,!!!discreteVars,!!continuousVar)
 	# this is confusing because groups mean 2 things here - the 
 	# different types of Y (grps) which should be preserved and the categorical X 
 	# has group counts (N) and subgroup counts (N_x) 
@@ -78,8 +78,9 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar
 	tmp4 = tmp4  %>% group_by(!!!grps,!!!discreteVars) %>% arrange(rank) %>% mutate(
 			
 			# correct k for tails of distributions exclusive
-			# kRank = row_number(),
-			# m_i = lead(rank,n=k_05,default=max(N))-lag(rank,n=k_05,default=1)+1L,
+			kRank = row_number(),
+			m_i = ifelse(is.na(lead(rank,n=k_05)),N,lead(rank,n=k_05))-lag(rank,n=k_05,default=1L)+1L,
+			k = ifelse(is.na(lead(kRank,n=k_05)),N_x,lead(kRank,n=k_05))-lag(kRank,n=k_05,default=1L)+1L
 			# k = lead(kRank,n=k_05,default=max(N_x))-lag(kRank,n=k_05,default=1)+1L
 			
 			# correct k for tails of distributions inclusive
@@ -88,8 +89,8 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar
 			# k = lead(kRank,n=k_05,default=max(N_x))-lag(kRank,n=k_05,default=1)
 			
 			# dont correct k & exclude tails
-			k = local(k_05)*2L,
-			m_i = ifelse( N_x < local(k_05)*2L+1L, NA, lead(rank,n=local(k_05))-lag(rank,n=local(k_05)) )
+			# k = local(k_05)*2L,
+			# m_i = ifelse( N_x < local(k_05)*2L+1L, NA, lead(rank,n=local(k_05))-lag(rank,n=local(k_05)) )
 	
 	)  
 	
@@ -116,9 +117,11 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar
 	tmp5 = tmp4 %>% filter(!is.na(I_i)) %>% group_by(!!!grps,N) %>% summarize(
 			I = mean(I_i,na.rm = TRUE),
 			I_sd = sd(I_i,na.rm = TRUE)
-	) %>% mutate(method = "KWindow")
+	) %>% mutate(
+	  I = ifelse(I<0,NA,I),
+	  method = "KWindow")
 	
-	return(tmp5)
+	return(tmp5 %>% ungroup())
 }
 
 #' calculate mutual information between a categorical value (X) and a continuous value (Y) using a discretisation and calculateDiscreteDiscreteMI()
@@ -143,7 +146,7 @@ calculateDiscreteContinuousMI_Discretise = function(df, discreteVars, continuous
 	tmp = tmp %>% discretise(y_continuous, y_discrete, method=discretiseMethod, ...) %>% compute()
 	
 	return(tmp %>% calculateDiscreteDiscreteMI(discreteVars, vars(y_discrete), method=mutualInfoMethod, ...) %>% 
-					collect() %>% mutate(method = paste0("Discretise - ",discretiseMethod," - ",mutualInfoMethod)))
+					collect() %>% mutate(method = paste0("Discretise - ",discretiseMethod," - ",method)))
 	
 }
 
@@ -234,7 +237,7 @@ calculateDiscreteContinuousMI_KNN = function(df, discreteVars, continuousVar, k_
 			I_sd = sd(I_i,na.rm = TRUE)
 	) %>% mutate(method = "KNN")
 	
-	return(tmp5)
+	return(tmp5 %>% ungroup())
 }
 
 
@@ -256,7 +259,7 @@ calculateDiscreteContinuousMI_Entropy = function(df, discreteVars, continuousVar
 	
 	H_y = df %>% group_by(!!!grps) %>% 
 			calculateContinuousEntropy(!!continuousVar, method = entropyMethod, ...) %>% 
-			rename(I_y = I, I_y_sd = I_sd) %>% mutate(tmp_join = 1L) %>% compute()
+			rename(I_y = I, I_y_sd = I_sd) %>% select(-method) %>% mutate(tmp_join = 1L) %>% compute()
 	
 	H_y_given_x = df %>% 
 			group_by(!!!grps, !!!discreteVars) %>% 
@@ -265,19 +268,18 @@ calculateDiscreteContinuousMI_Entropy = function(df, discreteVars, continuousVar
 	
 	#tmp2 = H_y %>% left_join(H_y_given_x, by=outerJoinList) %>% select(-tmp_join) %>%
 	#  mutate(p_x = N_x/N)
-	
 	suppressWarnings({
-	  tmp2 = H_y_given_x %>% left_join(H_y, by=outerJoinList) %>% mutate(p_x = as.double(N_x)/N) %>% group_by(!!!grps, N, I_y, I_y_sd) %>% summarise(
+	  tmp2 = H_y_given_x %>% left_join(H_y, by=outerJoinList) %>% mutate(p_x = as.double(N_x)/N) %>% group_by(!!!grps, N, method, I_y, I_y_sd) %>% summarise(
 	    na_check = sum(ifelse(is.na(I_given_x),1,0)),
 	    I_given_x = sum(I_given_x*p_x,na.rm = TRUE), 
 	    I_given_x_sd = sum(I_given_x_sd*p_x,na.rm = TRUE)
 	  )
 	})
 	
-	tmp2 = tmp2 %>% mutate(
-	  I = ifelse(na_check == 0, I_y - I_given_x, NA),
-	  I_sd = ifelse(na_check == 0, I_y_sd + I_given_x_sd, NA),
-	  method =  paste0("Entropy - ",entropyMethod)
+	tmp2 = tmp2 %>% group_by(!!!grps, N) %>% mutate(
+	  I = ifelse(na_check == 0 & I_given_x < I_y , I_y - I_given_x, NA),
+	  I_sd = ifelse(na_check == 0 & I_given_x < I_y, I_y_sd + I_given_x_sd, NA),
+	  method =  paste0("Entropy - ",max(method,na.rm=TRUE))
 	) %>% ungroup() %>% select(!!!grps, N, I, I_sd, method) %>% mutate(I = as.double(I), I_sd = as.double(I_sd))
 	
 	return(tmp2)
@@ -293,43 +295,43 @@ calculateDiscreteContinuousMI_Entropy = function(df, discreteVars, continuousVar
 #' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
-calculateDiscreteContinuousMI_PDF = function(df, discreteVars, continuousVar, probabilityMethod = "Kernel", ...) { 
-	grps = df %>% groups()
-	continuousVar = ensym(continuousVar)
-	
-	tmp = df %>% 
-			mutate(y_continuous=!!continuousVar) %>%
-			group_by(!!!grps) %>%
-			mutate(y_min = min(y_continuous),y_max = max(y_continuous))
-	
-	tmp2 = tmp %>%  
-			group_by(!!!grps,!!!discreteVars) %>% 
-			probabilitiesFromContinuous(y_continuous, minVar=y_min, maxVar=y_max, method=probabilityMethod, ...) %>%
-			rename(N_x = N, p_y_given_x=p_x, I_y_given_x = I_x)  %>% compute()
-	
-	tmp3 = tmp %>%
-			group_by(!!!grps) %>%
-			probabilitiesFromContinuous(y_continuous, minVar=y_min, maxVar=y_max, method=probabilityMethod, ...) %>%
-			rename(N = N, p_y = p_x, I_y = I_x)
-	
-	joinList = tmp %>% joinList(defaultJoin = "y_continuous")
-	
-	tmp4 = tmp2 %>% 
-			inner_join(tmp3, by=joinList) %>% 
-			mutate(
-					p_x = as.double(N_x)/N,
-					pmi_xy = p_x*p_y_given_x*log(p_y_given_x/p_y)
-			)
-	
-	tmp5 = tmp4 %>% group_by(!!!grps,N,!!!discreteVars) %>% arrange(y_continuous) %>% mutate(
-			# TODO: this integegration could be improved. lead(pmi_xy,default = 0)
-			d_I_d_xy = (pmi_xy+lag(pmi_xy,1,default=0))*as.double(y_continuous-lag(y_continuous))/2
-	) 
-	
-	tmp6 = tmp5 %>% group_by(!!!grps,N) %>% summarise (
-			I = sum(d_I_d_xy,na.rm=TRUE), # this does the sum over x & y
-			I_sd = as.double(NA),
-			method = paste0("PDF - ",probabilityMethod)
-	)
-	return(tmp6)
-}
+# calculateDiscreteContinuousMI_PDF = function(df, discreteVars, continuousVar, probabilityMethod = "Kernel", ...) { 
+# 	grps = df %>% groups()
+# 	continuousVar = ensym(continuousVar)
+# 	
+# 	tmp = df %>% 
+# 			mutate(y_continuous=!!continuousVar) %>%
+# 			group_by(!!!grps) %>%
+# 			mutate(y_min = min(y_continuous),y_max = max(y_continuous))
+# 	
+# 	tmp2 = tmp %>%  
+# 			group_by(!!!grps,!!!discreteVars) %>% 
+# 			probabilitiesFromContinuous(y_continuous, minVar=y_min, maxVar=y_max, method=probabilityMethod, ...) %>%
+# 			rename(N_x = N, p_y_given_x=p_x, I_y_given_x = I_x)  %>% compute()
+# 	
+# 	tmp3 = tmp %>%
+# 			group_by(!!!grps) %>%
+# 			probabilitiesFromContinuous(y_continuous, minVar=y_min, maxVar=y_max, method=probabilityMethod, ...) %>%
+# 			rename(N = N, p_y = p_x, I_y = I_x)
+# 	
+# 	joinList = tmp %>% joinList(defaultJoin = "y_continuous")
+# 	
+# 	tmp4 = tmp2 %>% 
+# 			inner_join(tmp3, by=joinList) %>% 
+# 			mutate(
+# 					p_x = as.double(N_x)/N,
+# 					pmi_xy = p_x*p_y_given_x*log(p_y_given_x/p_y)
+# 			)
+# 	
+# 	tmp5 = tmp4 %>% group_by(!!!grps,N,!!!discreteVars) %>% arrange(y_continuous) %>% mutate(
+# 			# TODO: this integegration could be improved. lead(pmi_xy,default = 0)
+# 			d_I_d_xy = (pmi_xy+lag(pmi_xy,1,default=0))*as.double(y_continuous-lag(y_continuous))/2
+# 	) 
+# 	
+# 	tmp6 = tmp5 %>% group_by(!!!grps,N) %>% summarise (
+# 			I = sum(d_I_d_xy,na.rm=TRUE), # this does the sum over x & y
+# 			I_sd = as.double(NA),
+# 			method = paste0("PDF - ",probabilityMethod)
+# 	)
+# 	return(tmp6)
+# }

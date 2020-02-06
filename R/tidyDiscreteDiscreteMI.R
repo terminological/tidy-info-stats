@@ -61,8 +61,8 @@ calculateDiscreteDiscreteMI_Entropy = function(df, groupXVars, groupYVars, entro
   })
   
   tmp2 = tmp2 %>% mutate(
-    I = ifelse(na_check == 0, I_y - I_given_x, NA),
-    I_sd = ifelse(na_check == 0, I_y_sd + I_given_x_sd, NA),
+    I = ifelse(na_check == 0 & I_given_x < I_y, I_y - I_given_x, NA),
+    I_sd = ifelse(na_check == 0 & I_given_x < I_y, I_y_sd + I_given_x_sd, NA),
     method =  paste0("Entropy - ",entropyMethod)
   ) %>% ungroup() %>% select(!!!grps, N, I, I_sd, method) %>% mutate(I = as.double(I), I_sd = as.double(I_sd))
   

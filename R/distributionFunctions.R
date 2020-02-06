@@ -398,11 +398,14 @@ ConditionalDistribution = R6::R6Class("ConditionalDistribution", public=list(
 				#' @param xmin - the minimum of the support
 				#' @param xmax - the maximum of the support
 				#' @return a ggassemble plot object
-				plot = function(xmin,xmax) {
+				plot = function(
+				    xmin=self$theoreticalMean()-3*sqrt(self$theoreticalVariance()),
+				    xmax=self$theoreticalMean()+3*sqrt(self$theoreticalVariance())
+				) {
 					out = self$getPdf(xmin=xmin,xmax=xmax)
-					pdfPlot = ggplot(out,aes(x=x,y=pxy,ymax=CDFxy,colour=y,fill=y))+geom_line(aes(y=px),colour="grey50")+geom_line()+geom_area(alpha=0.3,position="identity")+ylab("p(x\u2229y)")+theme(legend.position = "bottom",legend.direction = "vertical")
-					cdfPlot = ggplot(out,aes(x=x,y=CDFxy,colour=y))+geom_line(aes(y=CDFx),colour="grey50")+geom_line()+ylab("P(x\u2229y)")+theme(legend.position = "bottom",legend.direction = "vertical")
-					return(patchwork::wrap_plots(pdfPlot,cdfPlot,nrow=1))
+					pdfPlot = ggplot(out,aes(x=x,y=pxy,ymax=CDFxy,colour=y,fill=y))+geom_line(aes(y=px),colour="grey50")+geom_line()+geom_area(alpha=0.3,position="identity")+ylab("p(x\u2229y)")+guides(fill="none", colour="none")#+theme(legend.position = "bottom",legend.direction = "vertical")
+					cdfPlot = ggplot(out,aes(x=x,y=CDFxy,colour=y))+geom_line(aes(y=CDFx),colour="grey50")+geom_line()+ylab("P(x\u2229y)")#+theme(legend.position = "bottom",legend.direction = "vertical")
+					return(patchwork::wrap_plots(pdfPlot,cdfPlot,nrow=1,guides="collect"))
 				},
 				
 				#' @description generate the theoretical mutual information for this set of distributions using numerical integration of the underlying functions
@@ -480,7 +483,9 @@ MultivariableDistribution = R6::R6Class("MultivariableDistribution", public=list
   #' @param listWeights the weights as a named list e.g. list(feature1 = 0.1, ...)
   withClassWeights = function(listWeights) {
     self$classes = names(listWeights)
-    self$weights = unlist(listWeights, use.names = FALSE)  
+    self$weights = unlist(listWeights, use.names = FALSE)
+    sapply(self$dists, function(cls) cls$weights = unlist(listWeights[cls$classes]))
+    invisible(self)
   },
   
   #' @description produce a set of samples conforming to these distributions
@@ -503,18 +508,15 @@ MultivariableDistribution = R6::R6Class("MultivariableDistribution", public=list
       out = out %>% bind_rows(tmp)
     }
     return(out %>% rename(outcome=y,value=x,sample=i))
-  }
+  },
   
-  # TODO: multivariable plot
-  #' #' @description plot this distributions as pdf and cdf
-  #' #' @param xmin - the minimum of the support
-  #' #' @param xmax - the maximum of the support
-  #' #' @return a ggassemble plot object
-  #' plot = function(xmin,xmax) {
-  #'   out = self$getPdf(xmin=xmin,xmax=xmax)
-  #'   pdfPlot = ggplot(out,aes(x=x,y=pxy,ymax=CDFxy,colour=y,fill=y))+geom_line(aes(y=px),colour="grey50")+geom_line()+geom_area(alpha=0.3,position="identity")+ylab("p(x\u2229y)")+theme(legend.position = "bottom",legend.direction = "vertical")
-  #'   cdfPlot = ggplot(out,aes(x=x,y=CDFxy,colour=y))+geom_line(aes(y=CDFx),colour="grey50")+geom_line()+ylab("P(x\u2229y)")+theme(legend.position = "bottom",legend.direction = "vertical")
-  #'   return(patchwork::wrap_plots(pdfPlot,cdfPlot,nrow=1))
-  #' }
+  #' @description plot this distributions as pdf and cdf
+  #' @param xmin - the minimum of the support
+  #' @param xmax - the maximum of the support
+  #' @return a ggassemble plot object
+  plot = function() {
+    plots = lapply(self$dists, function(d) d$plot())
+    return(patchwork::wrap_plots(plots,ncol=1,guides="collect"))
+  }
   
 ))

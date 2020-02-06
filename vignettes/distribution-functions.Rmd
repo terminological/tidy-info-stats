@@ -135,7 +135,7 @@ cd3$plot(-5,5)
 
 ```{r}
 # devtools::load_all("..")
-testData = bloodResultsSimulation(1000)
+testData = bloodResultsSimulation(1000)$data
 
 #### Continuous probability estimation ----
 

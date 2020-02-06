@@ -93,7 +93,7 @@ calculateDiscreteEntropy_MontgomerySmith = function(df, groupVars, orderingVar =
   #  H = H/log(C_x),
   #  H_sd = H_sd/log(C_x) #TODO: making this up
   #)
-  # browser()
+  
   return(tmp2 %>% compute())
   
 }
@@ -154,8 +154,7 @@ calculateDiscreteEntropy_Grassberger = function(df, groupVars, countVar=NULL, ..
     I = log(max(N,na.rm = TRUE)) - sum(p_x * G_N_x,na.rm = TRUE),
     I_sd = as.double(NA),
     method = "Grassberger"
-  ) 
-  
+  )
   return(tmp3 %>% ungroup())
 }
 

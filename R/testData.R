@@ -68,6 +68,16 @@ bloodResultsSimulation = function(n,seed = 101) {
     tired=0.3
   ))
   
-  return(mvd$sample(n))
+  return(list(
+    theoretical = tibble(
+      feature=c("haemoglobin","serum k"),
+      I=c(hb$theoreticalMI(),k$theoreticalMI()),
+      mean=c(hb$theoreticalMean(),k$theoreticalMean()),
+      var=c(hb$theoreticalVariance(),k$theoreticalVariance())
+    ),
+    data = mvd$sample(n),
+    plot = mvd$plot,
+    sample = mvd$sample
+  ))
   
 }

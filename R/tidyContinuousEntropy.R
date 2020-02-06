@@ -95,20 +95,19 @@ calculateContinuousEntropy_PDF = function(df, continuousVar, probabilityMethod="
 			probabilitiesFromContinuous(x_continuous, method=probabilityMethod, ...) %>%
 			mutate(p_x_I_x = ifelse(p_x <= 0, 0, -p_x*log(p_x)))
 	
-	tmp2 = tmp2 %>% group_by(!!!grps, N) %>% arrange(x_continuous) %>% mutate(
-			d_I_d_x = (p_x_I_x+lag(p_x_I_x,1,default=0))*as.double(x_continuous-lag(x_continuous))/2
+	tmp2 = tmp2 %>% group_by(!!!grps, N, method) %>% arrange(x_continuous) %>% mutate(
+			d_I_d_x = (p_x_I_x+lag(p_x_I_x,1))*as.double(x_continuous-lag(x_continuous))/2
 		) 
 	
-	tmp3 = tmp2 %>% summarise(
+	tmp3 = tmp2 %>% group_by(!!!grps, N) %>% summarise(
 		  na_check = sum(ifelse(is.na(d_I_d_x),1,0)),
 			I = sum(d_I_d_x,na.rm=TRUE),
 			I_sd = as.double(NA),
-			method = paste0("PDF - ",probabilityMethod)
+			method = paste0("PDF - ",max(method,na.rm=TRUE))
 	) 
-	# browser()
 	tmp3 = tmp3 %>% mutate(
-		  I = ifelse(na_check > 1,NA,I)
-	)
+		  I = ifelse(na_check > 1 | I < 0,NA,I) # stops a zero result from na
+	) %>% select(-na_check)
 	
 	return(tmp3)
 	

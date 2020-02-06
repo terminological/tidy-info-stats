@@ -45,7 +45,8 @@ probabilitiesFromContinuous_SGolay = function(df, continuousVar, k_05 = 10,...) 
 	    p_x = 1.0/ifelse(d_x_d_r <= 0, NA, d_x_d_r)
 	) %>% select( -d_x_d_r ) %>%
 	  mutate(
-	    p_x = ifelse(N<(2*k_05+1),NA,p_x)
+	    p_x = ifelse(N<(2*k_05+1),NA,p_x),
+	    method = "SGolay"
 	  )
 	
 	tmp2 = tmp2 %>% rename(!!continuousVar := tmp_x_continuous)
@@ -91,17 +92,21 @@ probabilitiesFromContinuous_Kernel = function(df, continuousVar, minVar=NULL, ma
 	
 	tmp2 = df %>% group_by(!!!grps, tmp_x_min, tmp_x_max) %>% group_modify(
 			function(d,g,...) {
+			  originalSize = max(d$N,na.rm = TRUE)
+			  if (g$tmp_x_min==g$tmp_x_max) {
+			    return(tibble(N=rep(originalSize,512), tmp_x_continuous=NA, p_x = NA, method="Kernal"))
+			  }
 				dens = density(d$tmp_x_continuous, bw="nrd0", kernel="gaussian", from=g$tmp_x_min, to=g$tmp_x_max, n=512)
-				originalSize = max(d$N,na.rm = TRUE)
 				return(
 						tibble(
-								N = 512,
+								N = originalSize,
 								tmp_x_continuous = dens$x,
-								p_x = dens$y
+								p_x = dens$y,
+								method = "Kernel"
 						)
 				)
 			}
-	)
+	) %>% ungroup()
 	
 	tmp2 = tmp2 %>% rename(!!continuousVar := tmp_x_continuous)
 	if (!identical(minVar,NULL)) {
@@ -115,6 +120,5 @@ probabilitiesFromContinuous_Kernel = function(df, continuousVar, minVar=NULL, ma
 	} else {
 		tmp2 = tmp2 %>% select(-tmp_x_max)
 	}
-	
 	return(tmp2)
 }
