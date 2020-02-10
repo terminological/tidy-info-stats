@@ -443,14 +443,17 @@ collectOutcomeVector = function(df, rowVar, outcomeVar, factorise = TRUE, ...) {
 #' @param outcomeVar - the dataframe columns(s) which define the matrix columns, quoted by vars(...) - typically this is the feature id
 #' @param featureVar - the dataframe columns(s) which define the matrix columns, quoted by vars(...) - typically this is the feature id
 #' @param valueVar - the name of the value variable. (#TODO could be missing - in which case use binary)
-#' @param rowNameVar - (optional) the dataframe column continaing the row names otherwise use rowVar
-#' @param colNameVar - (optional) the dataframe column continaing the column names otherwise use colVar
 #' @param ... - other parameters passes to Matrix::sparseMatrix & as.factor (for outcomes)
-#' @return a dbplyr dataframe containing the grouped function
+#' @return a list with the following elements:
+#' 
+#' * rowLabels - the labels for each row in order
+#' * colLabels - the feature labels in order
+#' * matrix - a Matrix::sparseMatrix of the data, with values as doubles
+#' * outcome - a vector of outcomes (probably as a factor)
 #' @export
 collectAsTrainingSet = function(df, sampleVar, outcomeVar, featureVar, valueVar=NULL, featureNameVar=NULL, factorise = TRUE, ...) {
   valueVar = tryCatch(ensym(valueVar), error=function(e) NULL)
-  featureNameVar = tryCatch(ensym(rowNameVar), error=function(e) NULL)
+  featureNameVar = tryCatch(ensym(featureNameVar), error=function(e) NULL)
   sampleVar = ensym(sampleVar)
   featureVar = ensym(featureVar)
   outcomeVar = ensym(outcomeVar)
