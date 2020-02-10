@@ -21,7 +21,7 @@ calculateDiscreteBinaryMI =  function(df, discreteVars, countVar=NULL, method="G
 
 #' calculate mutual information between a categorical value (X) and its absence in a data set.
 #' 
-#' This calculates the mutual information of a feature not being present in all samples
+#' This calculates the mutual information of a feature not being present in every sample
 #' 
 #' This is relevant for sparse data sets with many features such as NLP terms, where a term as a
 #' feture may not be present in a given document, and this absense may be assymetrically distributed between
@@ -30,8 +30,8 @@ calculateDiscreteBinaryMI =  function(df, discreteVars, countVar=NULL, method="G
 #' @param df - may be grouped, in which case the value is interpreted as different types of variable (features)
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome)
 #' @param sampleVars - the column(s) of the sample identifier
-#' @param sampleCount - an integer containing the count of all samples per outcome (discreteVars)
-#' @param sampleCountDf - a dataframe containing columns for df grouping (features), and discreteVars (outcomes), N and N_x columns with expected counts
+#' @param sampleCount - (optional) an integer containing the count of all samples per outcome (discreteVars)
+#' @param sampleCountDf - (optional) a dataframe containing columns for df grouping (features), and discreteVars (outcomes), N and N_x columns with expected counts
 #' see expectSamplesByOutcome(...)
 #' @return a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
@@ -42,22 +42,23 @@ calculateDiscreteAbsentValuesMI = function(df, discreteVars, sampleVars, sampleC
 	tmp = df %>% observedVersusExpected(discreteVars=discreteVars, sampleVars=sampleVars, sampleCount=sampleCount, sampleCountDf=sampleCountDf, ...)
 	
 	# this calculation uses the for of I(X,Y) given here:
-	# https://en.wikipedia.org/w/index.php?title=Mutual_information&action=edit&section=9
+	# https://en.wikipedia.org/w/index.php?title=Mutual_information&section=9#Relation_to_Kullback%E2%80%93Leibler_divergence
 	# substituting Abs for X and our X for Y - = p_X_given_Y=y becomes p_abs_given_X=x 
 	tmp2 = tmp %>% mutate(
 			# we need to know I_given_unlabelled_and_x
+	    p_x = N_x_exp / N_exp,
 			p_abs = as.double(N_exp-N_obs)/N_exp,
 			p_abs_given_x = as.double(N_x_exp-N_x_obs)/N_x_exp,
-			p_pres = 1-p_abs,
+			N_abs = N_exp-N_obs,
 			I_abs_given_x = ifelse(p_abs_given_x <= 0, 0 ,p_abs_given_x*log(p_abs_given_x/p_abs))
 	)
 	#tmp2: I_given_abs_and_x is pointwise mut info? or I(Abs|X=x)
 	#tmp2 could be maybe combined with pointwise I(Y|X=x) to get a measure of how much
 	#information Y or its absence infers about X=x 
 	
-	tmp3 = tmp2 %>% group_by(!!!grps,N_exp,N_obs) %>% summarise(
+	tmp3 = tmp2 %>% group_by(!!!grps,N_exp,N_abs) %>% summarise(
 			# combine labelled and unlabelled I (independent)
-			I = sum(p_abs*I_abs_given_x),
+			I = sum(p_x*I_abs_given_x),
 			I_sd = as.double(NA)
 	) %>% mutate(method = "Absent values") 
 	
@@ -72,11 +73,11 @@ calculateDiscreteAbsentValuesMI = function(df, discreteVars, sampleVars, sampleC
 #' This is relevant for sparse data sets with many features such as NLP terms, where a term as a
 #' feature is only flagged as present in the samples. 
 #' 
-#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
+#' @param df - may be grouped, in which case the value is interpreted as different types of variable (features)
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome)
-#' @param sampleVars - the column(s) of the sample identifier. From this we expect (at least) one outcome per sample
-#' @param sampleCount - an integer containing the count of all samples per outcome (discreteVar)
-#' @param sampleCountDf - a dataframe containing columns for grouping, and discreteVars, N and N_x columns with counts
+#' @param sampleVars - the column(s) of the sample identifier
+#' @param sampleCount - (optional) an integer containing the count of all samples per outcome (discreteVars)
+#' @param sampleCountDf - (optional) a dataframe containing columns for df grouping (features), and discreteVars (outcomes), N and N_x columns with expected counts
 #' see expectSamplesByOutcome(...)
 #' @return a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
@@ -87,10 +88,11 @@ calculateDiscretePresentValuesMI = function(df, discreteVars, sampleVars, sample
 	tmp = df %>% observedVersusExpected(discreteVars=discreteVars, sampleVars=sampleVars, sampleCount=sampleCount, sampleCountDf=sampleCountDf, ...)
 	
 	# this calculation uses the for of I(X,Y) given here:
-	# https://en.wikipedia.org/w/index.php?title=Mutual_information&action=edit&section=9
+	# https://en.wikipedia.org/w/index.php?title=Mutual_information&section=9#Relation_to_Kullback%E2%80%93Leibler_divergence
 	# substituting Pres for X and our X for Y - = p_X_given_Y=y becomes p_abs_given_X=x 
 	tmp2 = tmp %>% mutate(
 			# we need to know I_given_unlabelled_and_x
+	    p_x = N_x_exp / N_exp,
 			p_pres = as.double(N_obs)/N_exp,
 			p_pres_given_x = as.double(N_x_obs)/N_x_exp,
 			I_pres_given_x = ifelse(p_pres_given_x <= 0, 0 ,p_pres_given_x*log(p_pres_given_x/p_pres))
@@ -101,7 +103,7 @@ calculateDiscretePresentValuesMI = function(df, discreteVars, sampleVars, sample
 	
 	tmp3 = tmp2 %>% group_by(!!!grps,N_exp,N_obs) %>% summarise(
 			# combine labelled and unlabelled I (independent)
-			I = sum(p_pres*I_pres_given_x),
+			I = sum(p_x*I_pres_given_x),
 			I_sd = as.double(NA)
 	) %>% mutate(method = "Present values") 
 	

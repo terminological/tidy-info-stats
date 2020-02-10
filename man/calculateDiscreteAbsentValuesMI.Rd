@@ -20,16 +20,16 @@ calculateDiscreteAbsentValuesMI(
 
 \item{sampleVars}{- the column(s) of the sample identifier}
 
-\item{sampleCount}{- an integer containing the count of all samples per outcome (discreteVars)}
+\item{sampleCount}{- (optional) an integer containing the count of all samples per outcome (discreteVars)}
 
-\item{sampleCountDf}{- a dataframe containing columns for df grouping (features), and discreteVars (outcomes), N and N_x columns with expected counts
+\item{sampleCountDf}{- (optional) a dataframe containing columns for df grouping (features), and discreteVars (outcomes), N and N_x columns with expected counts
 see expectSamplesByOutcome(...)}
 }
 \value{
 a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 }
 \description{
-This calculates the mutual information of a feature not being present in all samples
+This calculates the mutual information of a feature not being present in every sample
 }
 \details{
 This is relevant for sparse data sets with many features such as NLP terms, where a term as a

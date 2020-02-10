@@ -1,3 +1,6 @@
+# N.B. test cases exist
+
+
 #' calculate entropy of a sequence of 
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
@@ -33,7 +36,7 @@ calculateDiscreteEntropy = function(df, groupVars, method, ...) {
 #' @import dplyr
 #' @export
 calculateDiscreteEntropy_MontgomerySmith = function(df, groupVars, orderingVar = NULL, ...) {
-  
+  if (!missing(countVar)) stop("MontgomerySmith cannot operate with summary counts")
   # Euler–Mascheroni constant (lambda)
   lambda = 0.577215664901532
   
@@ -171,6 +174,7 @@ calculateDiscreteEntropy_Grassberger = function(df, groupVars, countVar=NULL, ..
 #' @import dplyr
 #' @export
 calculateDiscreteEntropy_InfoTheo = function(df, groupVars, infoTheoMethod="mm", collect=FALSE, ...) {
+  if (!missing(countVar)) stop("InfoTheo cannot operate with summary counts")
   df = collectDf(df,collect)
   grps = df %>% groups()
   # groupVars = ensyms(groupVars)
@@ -203,6 +207,7 @@ calculateDiscreteEntropy_InfoTheo = function(df, groupVars, infoTheoMethod="mm",
 #' @import dplyr
 #' @export
 calculateDiscreteEntropy_Compression = function(df, groupVars, orderingVar = NULL, collect=FALSE, ...) {
+  if (!missing(countVar)) stop("Compression algorithm cannot operate with summary counts")
   df = collectDf(df,collect)
   grps = df %>% groups()
   # groupVars = ensyms(groupVars)

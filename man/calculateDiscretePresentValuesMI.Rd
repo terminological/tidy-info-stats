@@ -14,15 +14,15 @@ calculateDiscretePresentValuesMI(
 )
 }
 \arguments{
-\item{df}{- may be grouped, in which case the value is interpreted as different types of continuous variable}
+\item{df}{- may be grouped, in which case the value is interpreted as different types of variable (features)}
 
 \item{discreteVars}{- the column(s) of the categorical value (X) quoted by vars(...) (e.g. outcome)}
 
-\item{sampleVars}{- the column(s) of the sample identifier. From this we expect (at least) one outcome per sample}
+\item{sampleVars}{- the column(s) of the sample identifier}
 
-\item{sampleCount}{- an integer containing the count of all samples per outcome (discreteVar)}
+\item{sampleCount}{- (optional) an integer containing the count of all samples per outcome (discreteVars)}
 
-\item{sampleCountDf}{- a dataframe containing columns for grouping, and discreteVars, N and N_x columns with counts
+\item{sampleCountDf}{- (optional) a dataframe containing columns for df grouping (features), and discreteVars (outcomes), N and N_x columns with expected counts
 see expectSamplesByOutcome(...)}
 }
 \value{

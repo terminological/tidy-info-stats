@@ -173,7 +173,7 @@ discretise_ByRank = function(df, continuousVar, discreteOutputVar, bins=NA, binS
 #' 
 #' @param df - a grouped dataframe
 #' @param cuts - a vector of cuts - not including the -Inf, Inf ends
-#' @return a datafram of cuts
+#' @return a dataframe of cuts
 #' @export
 cutsDfFromVector = function(df, cuts) {
   grps = df %>% groups()

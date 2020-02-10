@@ -286,15 +286,15 @@ calculateDiscreteContinuousMI_Entropy = function(df, discreteVars, continuousVar
 	
 }
 
-#' calculate mutual information between a categorical value (X) and a continuous value (Y) using an estimator of PDF
-#' 
-#' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
-#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
-#' @param continuousVar - the column of the continuous value (Y)
-#' @param collect - if TRUE will collect dbplyr tables before processing, otherwise (the default) will fail on dbplyr tables
-#' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
-#' @import dplyr
-#' @export
+# calculate mutual information between a categorical value (X) and a continuous value (Y) using an estimator of PDF
+# 
+# @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
+# @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
+# @param continuousVar - the column of the continuous value (Y)
+# @param collect - if TRUE will collect dbplyr tables before processing, otherwise (the default) will fail on dbplyr tables
+# @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+# @import dplyr
+# @export
 # calculateDiscreteContinuousMI_PDF = function(df, discreteVars, continuousVar, probabilityMethod = "Kernel", ...) { 
 # 	grps = df %>% groups()
 # 	continuousVar = ensym(continuousVar)

@@ -29,7 +29,7 @@ calculateDiscreteDiscreteMI =  function(df, groupXVars, groupYVars, method="Gras
 #' @return a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @export
 calculateDiscreteDiscreteMI_Empirical = function(df, groupXVars, groupYVars, ...) {
-  df %>% probabilitiesFromCooccurrence(groupXVars, groupYVars) %>% calculateMultiClassMI()
+  df %>% probabilitiesFromCooccurrence(groupXVars, groupYVars, ...) %>% calculateMultiClassMI()
 }
 
 #' calculate mutual information between a discrete value (X) and a discrete value (Y) using estimates of entropy
@@ -61,8 +61,8 @@ calculateDiscreteDiscreteMI_Entropy = function(df, groupXVars, groupYVars, entro
   })
   
   tmp2 = tmp2 %>% mutate(
-    I = ifelse(na_check == 0 & I_given_x < I_y, I_y - I_given_x, NA),
-    I_sd = ifelse(na_check == 0 & I_given_x < I_y, I_y_sd + I_given_x_sd, NA),
+    I = ifelse(na_check == 0 & I_given_x <= I_y, I_y - I_given_x, NA),
+    I_sd = ifelse(na_check == 0 & I_given_x <= I_y, I_y_sd + I_given_x_sd, NA),
     method =  paste0("Entropy - ",entropyMethod)
   ) %>% ungroup() %>% select(!!!grps, N, I, I_sd, method) %>% mutate(I = as.double(I), I_sd = as.double(I_sd))
   

@@ -13,6 +13,9 @@ expectSamplesByOutcome(df, samplesPerOutcomeDf, ...)
 
 \item{samplePerOutcomeDf}{- a dataframe containing one row per outcome and the number of samples expected for that outcome in column N}
 }
+\value{
+a dataframe with the expected values of all outcomes if there are a fixed number of samples per outcome
+}
 \description{
 specify the number of expected observations for each class based on  a fixed number.
 }

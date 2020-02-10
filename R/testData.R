@@ -39,6 +39,21 @@ tidyDiscreteUSArrestsCooccurrence = function() {
   return(lhs %>% inner_join(rhs, by="sample"))
 }
 
+#' tidy dataframe of the Iris data with features & outcomes
+#' 
+#' @import dplyr
+#' @export
+tidyIris = function() {
+  iris %>% 
+    mutate(sample = row_number()) %>% 
+    rename(
+      Sepal_Length = Sepal.Length,
+      Sepal_Width = Sepal.Width,
+      Petal_Length = Petal.Length,
+      Petal_Width = Petal.Width
+      ) %>%
+    tidyr::pivot_longer(cols=c(Sepal_Length,Sepal_Width,Petal_Length,Petal_Width), names_to = "feature") %>% rename(outcome = Species)
+}
 
 #' tidy dataframe of the simulation of blood test results with known distributions for individual outcomes.
 #' 
@@ -81,3 +96,5 @@ bloodResultsSimulation = function(n,seed = 101) {
   ))
   
 }
+
+

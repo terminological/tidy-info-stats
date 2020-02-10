@@ -93,34 +93,14 @@ observedVersusExpected = function(df, discreteVars, sampleVars, sampleCount=NULL
   return(tmp %>% select(-tmp_join))
 }
 
-
-#' summary info about the observations
-#' 
-#' @param df - may be grouped, in which case the value is interpreted as different features
-#' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
-#' @param expected - the total number of samples for each outcome expected if there were no missing values.
-summariseObservations = function(df, discreteVars, countVar = NULL) {
-	countVar = tryCatch(ensym(countVar),error = function(e) NULL)
-	grps = df %>% groups()
-	outerJoin = df %>% joinList(discreteVars)
-	
-	left = df %>% select(!!!grps) %>% distinct() %>% mutate(join=1)
-	right = df %>% ungroup() %>% select(!!!discreteVars) %>% distinct() %>% mutate(join=1)
-	cross = left %>% left_join(right, by="join")
-	
-	cross = cross %>% left_join(df %>% groupwiseCount(discreteVars, !!countVar, summarise=TRUE), by=outerJoin) %>%
-			mutate(
-					N_x = ifelse(is.na(N_x), 0, N_x),
-					N = ifelse(is.na(N), 0, N)
-			)
-	return(cross %>% select(-join))
-}
-
 #' specify the number of expected observations for each class based on  a fixed number.
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different features
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...) (usually the outcome)
 #' @param sampleCount - the number of samples per outcome (equal numbers).
+#' @return a dataframe with the expected values of all outcomes if there are a fixed number of samples
+#' @import dplyr
+#' @export
 expectFixedSamples = function(df, discreteVars, sampleCount, ...) {
 	grps = df %>% groups()
 	left = df %>% select(!!!grps) %>% distinct() %>% mutate(join=1)
@@ -135,6 +115,9 @@ expectFixedSamples = function(df, discreteVars, sampleCount, ...) {
 #' @param df - may be grouped, in which case the value is interpreted as different types of continuous variable
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...) (usually the outcome)
 #' @param samplePerOutcomeDf - a dataframe containing one row per outcome and the number of samples expected for that outcome in column N
+#' @return a dataframe with the expected values of all outcomes if there are a fixed number of samples per outcome
+#' @import dplyr
+#' @export
 expectSamplesByOutcome = function(df, samplesPerOutcomeDf, ...) {
 	grps = df %>% groups()
 	left = df %>% select(!!!grps) %>% distinct() %>% mutate(join=1)
@@ -147,7 +130,10 @@ expectSamplesByOutcome = function(df, samplesPerOutcomeDf, ...) {
 #' 
 #' @param df - may be grouped, in which case the value is interpreted as different features
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...) i.e. typically the outcome
-#' @param sampleVars - the column(s) that identify the sample space, quoted by vars(...) i.e. usually the sample identifier  
+#' @param sampleVars - the column(s) that identify the sample space, quoted by vars(...) i.e. usually the sample identifier
+#' @return a dataframe with the expected values of all outcomes if there are identified samples and we expect every feature to be present once
+#' @import dplyr
+#' @export
 expectOnePerSample = function(df, discreteVars, sampleVars, ...) {
 	grps = df %>% groups()
 	

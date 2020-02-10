@@ -19,7 +19,7 @@ calculateSelfInformation_Histogram(
 
 \item{countVar}{- (optional) if this datafram represents summary counts, the columns of the summary variable.}
 
-\item{mm}{- Apply a miller-madow adjustment to the result}
+\item{mm}{- Apply a miller-madow adjustment to the result? default = TRUE}
 }
 \value{
 a dataframe containing the distinct values of the discrete variable, per group, with columns I_x, and method

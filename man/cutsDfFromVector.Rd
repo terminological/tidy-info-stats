@@ -12,7 +12,7 @@ cutsDfFromVector(df, cuts)
 \item{cuts}{- a vector of cuts - not including the -Inf, Inf ends}
 }
 \value{
-a datafram of cuts
+a dataframe of cuts
 }
 \description{
 generate a data fram of cuts for every group in a dataframe from a vector of cuts, and the dataframe

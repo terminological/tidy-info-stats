@@ -22,8 +22,6 @@ calculateCooccurrenceMI(
 }
 \value{
 a data frame with co-occurrence stats for each concept in filteredIdf (i.e. document)
-
-the co-occurrence matrix as a dataframe
 }
 \description{
 The grouped dataframe here acts as a "Document" from the perpective of the co-occurrence but might be a person. For the cose of co-occurrence we are only interested in the existence of

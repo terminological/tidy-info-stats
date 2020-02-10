@@ -13,6 +13,9 @@ expectFixedSamples(df, discreteVars, sampleCount, ...)
 
 \item{sampleCount}{- the number of samples per outcome (equal numbers).}
 }
+\value{
+a dataframe with the expected values of all outcomes if there are a fixed number of samples
+}
 \description{
 specify the number of expected observations for each class based on  a fixed number.
 }

@@ -13,6 +13,9 @@ expectOnePerSample(df, discreteVars, sampleVars, ...)
 
 \item{sampleVars}{- the column(s) that identify the sample space, quoted by vars(...) i.e. usually the sample identifier}
 }
+\value{
+a dataframe with the expected values of all outcomes if there are identified samples and we expect every feature to be present once
+}
 \description{
 specify the number of expected observations for each class based on a grouping of the data
 }

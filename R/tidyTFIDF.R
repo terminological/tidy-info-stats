@@ -162,7 +162,6 @@ calculateTfidf = function(groupedDf, sampleVars, countVar=NULL, idfDf=NULL, k1 =
 #' @return a data frame with co-occurrence stats for each concept in filteredIdf (i.e. document)
 #' @import dplyr
 #' @export
-#' @return the co-occurrence matrix as a dataframe
 calculateCooccurrenceMI = function(groupedDf, conceptIdVar, filteredIdfDf = NA, bigResult=FALSE) {
 	
 	grps = groupedDf %>% groups()

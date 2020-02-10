@@ -1,3 +1,28 @@
+# N.B. test cases exist
+
+#### DBPlyr grouped data utilities ----
+
+#' Calculates a join list
+#' 
+#' @param df - a df which may be grouped
+#' @param groupVars - the grouping for which we want to create a label as a list of columns quoted by vars(...)
+#' @param defaultJoin - if there is no grouping we need one column to join by.
+#' @export
+joinList = function(df,groupVars=NULL,defaultJoin=NULL) {
+  grps = df %>% groups()
+  joinList = c()
+  if (!identical(defaultJoin,NULL)) {
+    joinList = c(joinList,defaultJoin)
+  }
+  if (length(grps)!=0) {
+    joinList = c(joinList, sapply(grps,as.character))
+  }
+  if (!identical(groupVars,NULL)) {
+    joinList = c(joinList, as.vector(sapply(groupVars,as_label)))
+  }
+  return(joinList)
+}
+
 #' Execute a mutate function on grouped data in all databases
 #' 
 #' Some databases don't support window functions over grouped data. This requires a workaround to group and summarise then join the data.
@@ -72,10 +97,7 @@ labelGroup = function(df, groupVars, outputVar, summarise=FALSE, consistentBetwe
       joinList = df %>% joinList(groupVars)
       return(df %>% left_join(tmp,by=joinList))
     }
-    
   }
-  
-  
 }
 
 
@@ -96,101 +118,6 @@ createSequentialIdentifier = function(df, groupVars, sampleIdVar) {
   
   joinList = df %>% ungroup() %>% joinList(groupVars)
   return(df %>% left_join(tmp,by=joinList))
-}
-
-
-#' Converts a tidy dataframe into a Matrix::sparseMatrix 
-#' 
-#' offloading the majority of processing onto sql if dbplyr tables are involved
-#' 
-#' @param df - a df
-#' @param rowVar - the dataframe columns(s) which define the matrix row, quoted by vars(...) - typically this is the observation id
-#' @param colVar - the dataframe columns(s) which define the matrix columns, quoted by vars(...) - typically this is the feature id
-#' @param valueVar - the name of the value variable. (#TODO could be missing - in which case use binary)
-#' @param rowNameVar - (optional) the dataframe column continaing the row names otherwise use rowVar
-#' @param colNameVar - (optional) the dataframe column continaing the column names otherwise use colVar
-#' @param ... - other parameters passes to Matrix::sparseMatrix
-#' @return a dbplyr dataframe containing the grouped function
-#' @export
-collectAsSparseMatrix = function(df, rowVar, colVar, valueVar=NULL, rowNameVar=NULL, colNameVar=NULL, ...) {
-  valueVar = tryCatch(ensym(valueVar), error=function(e) NULL)
-  rowVar = ensym(rowVar)
-  colVar = ensym(colVar)
-  rowNameVar = tryCatch(ensym(rowNameVar), error=function(e) NULL)
-  colNameVar = tryCatch(ensym(colNameVar), error=function(e) NULL)
-  df = df %>% ungroup()
-  
-  # group data by rowVar and generate a sequential row_id and label
-  if (identical(rowNameVar,NULL)) {
-    rows = df %>% select(!!rowVar) %>% distinct() %>% arrange(!!rowVar) %>% mutate(tmp_row_id = row_number())
-    rowLabels = rows %>% pull(!!rowVar)
-  } else {
-    rows = df %>% group_by(!!rowVar) %>% summarise(tmp_label = !!rowNameVar) %>% arrange(!!rowVar) %>% mutate(tmp_row_id = row_number())
-    rowLabels = rows %>% pull(tmp_label) %>% make.unique(sep=" ")
-  }
-  
-  # group data by colVar and generate a sequential col_id and label
-  if (identical(colNameVar,NULL)) {
-    cols = df %>% select(!!colVar) %>% distinct() %>% arrange(!!colVar) %>% mutate(tmp_col_id = row_number())
-    colLabels = cols %>% pull(!!colVar)
-  } else {
-    cols = df %>% group_by(!!colVar) %>% summarise(tmp_label = min(!!colNameVar)) %>% arrange(!!colVar) %>% mutate(tmp_col_id = row_number())
-    colLabels = cols %>% pull(tmp_label) %>% make.unique(sep=" ")
-  }
-  
-  if (identical(valueVar,NULL)) {
-    
-    # There is no value so we use the pattern matrix form of Matrix::sparseMatrix
-    data = df %>% 
-      select(!!rowVar,!!colVar) %>% 
-      inner_join(rows, by=as.character(rowVar)) %>% 
-      inner_join(cols, by=as.character(colVar)) %>% 
-      select(tmp_row_id, tmp_col_id) %>%
-      collect()
-    #browser()
-    return(Matrix::sparseMatrix(i = data$tmp_row_id, j=data$tmp_col_id, dimnames= list(rowLabels,colLabels), ...))
-    
-  } else {
-    
-    data = df %>% 
-      select(!!rowVar,!!colVar,!!valueVar) %>% 
-      inner_join(rows, by=as.character(rowVar)) %>% 
-      inner_join(cols, by=as.character(colVar)) %>% 
-      rename(tmp_value = !!valueVar) %>%
-      select(tmp_row_id, tmp_col_id, tmp_value) %>%
-      collect()
-    #browser()
-    return(Matrix::sparseMatrix(i = data$tmp_row_id, j=data$tmp_col_id, x=data$tmp_value, dimnames=list(rowLabels,colLabels), ...))
-    
-  }
-  
-}
-
-
-#' Converts a tidy dataframe into a Matrix::sparseMatrix 
-#' 
-#' offloading the majority of processing onto sql if dbplyr tables are involved
-#' 
-#' @param df - a df
-#' @param rowVar - the dataframe columns(s) which define the matrix row, quoted by vars(...) - typically this is the observation id
-#' @param outcomeVar - (optional) the dataframe column continaing the outcome
-#' @param factorise - convert outcomeVar to a factor (default FALSE)
-#' @param ... - other parameters passed to as.factor
-#' @return a dbplyr dataframe containing the grouped function
-#' @export
-collectOutcomeVector = function(df, rowVar, outcomeVar, factorise = TRUE, ...) {
-  rowVar = ensym(rowVar)
-  outcomeVar = ensym(outcomeVar)
-  df = df %>% ungroup()
-  
-  rows = df %>% select(!!rowVar, !!outcomeVar) %>% distinct() %>% arrange(!!rowVar)
-  
-  outcomeVector = rows %>% pull(!!outcomeVar)
-  if (factorise) {
-    outcomeVector = as.factor(outcomeVector, ...)
-  }
-  
-  return(outcomeVector)
 }
 
 
@@ -254,6 +181,8 @@ collectDf = function(df, collect) {
   return(df)
 }
 
+#### Digamma calculation ----
+
 #' a set of the first 50 digamma values
 digammaLookup = tibble(n = c(1:50), digamma = digamma(c(1:50)))
 
@@ -279,25 +208,8 @@ calculateDigamma = function(df, inputVar, outputVar) {
   }
 }
 
-#' Calculates a join list
-#' 
-#' @param df - a df which may be grouped
-#' @param groupVars - the grouping for which we want to create a label as a list of columns quoted by vars(...)
-#' @param defaultJoin - if there is no grouping we need one column to join by.
-joinList = function(df,groupVars=NULL,defaultJoin=NULL) {
-  grps = df %>% groups()
-  joinList = c()
-  if (!identical(defaultJoin,NULL)) {
-    joinList = c(joinList,defaultJoin)
-  }
-  if (length(grps)!=0) {
-    joinList = c(joinList, sapply(grps,as.character))
-  }
-  if (!identical(groupVars,NULL)) {
-    joinList = c(joinList, as.vector(sapply(groupVars,as_label)))
-  }
-  return(joinList)
-}
+
+#### Savitsky Golay filter ----
 
 #' Precalculates a sgolay filter (WIP)
 #'
@@ -338,8 +250,8 @@ coefficientAdj = function(sgolayTable, sampleSizeVar, derivative, supportRange=1
 #' @param m - the mth derivative
 #' @return a summarised dataframe including group info, the continuous variable and an output variable representing the filtered value
 #' @export
-#' TODO: some form of support range for each group (currently fixed from 0 to 1)
 applySGolayFilter = function(df, continuousVar, outputVar, k_05, p, m) {
+  # TODO: some form of support range for each group (currently fixed from 0 to 1)
   # k_05=2
   # df = tibble(group = sample.int(4,size=100,replace=TRUE), value=rnorm(100)) %>% group_by(group)
   # continuousVar = "value"
@@ -420,4 +332,195 @@ applySGolayFilter = function(df, continuousVar, outputVar, k_05, p, m) {
   
   
   
+}
+
+#### Dataframe collection ----
+
+#' Converts a tidy dataframe into a Matrix::sparseMatrix 
+#' 
+#' offloading the majority of processing onto sql if dbplyr tables are involved
+#' 
+#' @param df - a df
+#' @param rowVar - the dataframe columns(s) which define the matrix row, quoted by vars(...) - typically this is the observation id
+#' @param colVar - the dataframe columns(s) which define the matrix columns, quoted by vars(...) - typically this is the feature id
+#' @param valueVar - the name of the value variable. (#TODO could be missing - in which case use binary)
+#' @param rowNameVar - (optional) the dataframe column continaing the row names otherwise use rowVar
+#' @param colNameVar - (optional) the dataframe column continaing the column names otherwise use colVar
+#' @param ... - other parameters passes to Matrix::sparseMatrix
+#' @return a dbplyr dataframe containing the grouped function
+#' @export
+collectAsSparseMatrix = function(df, rowVar, colVar, valueVar=NULL, rowNameVar=NULL, colNameVar=NULL, ...) {
+  valueVar = tryCatch(ensym(valueVar), error=function(e) NULL)
+  rowVar = ensym(rowVar)
+  colVar = ensym(colVar)
+  rowNameVar = tryCatch(ensym(rowNameVar), error=function(e) NULL)
+  colNameVar = tryCatch(ensym(colNameVar), error=function(e) NULL)
+  df = df %>% ungroup()
+  
+  # group data by rowVar and generate a sequential row_id and label
+  if (identical(rowNameVar,NULL)) {
+    rows = df %>% select(!!rowVar) %>% distinct() %>% arrange(!!rowVar) %>% mutate(tmp_row_id = row_number())
+    rowLabels = rows %>% pull(!!rowVar)
+  } else {
+    rows = df %>% group_by(!!rowVar) %>% summarise(tmp_label = !!rowNameVar) %>% arrange(!!rowVar) %>% mutate(tmp_row_id = row_number())
+    rowLabels = rows %>% pull(tmp_label) %>% make.unique(sep=" ")
+  }
+  
+  # group data by colVar and generate a sequential col_id and label
+  if (identical(colNameVar,NULL)) {
+    cols = df %>% select(!!colVar) %>% distinct() %>% arrange(!!colVar) %>% mutate(tmp_col_id = row_number())
+    colLabels = cols %>% pull(!!colVar)
+  } else {
+    cols = df %>% group_by(!!colVar) %>% summarise(tmp_label = min(!!colNameVar)) %>% arrange(!!colVar) %>% mutate(tmp_col_id = row_number())
+    colLabels = cols %>% pull(tmp_label) %>% make.unique(sep=" ")
+  }
+  
+  if (identical(valueVar,NULL)) {
+    
+    # There is no value so we use the pattern matrix form of Matrix::sparseMatrix
+    data = df %>% 
+      select(!!rowVar,!!colVar) %>% 
+      inner_join(rows, by=as.character(rowVar)) %>% 
+      inner_join(cols, by=as.character(colVar)) %>% 
+      select(tmp_row_id, tmp_col_id) %>%
+      collect()
+    #browser()
+    return(Matrix::sparseMatrix(i = data$tmp_row_id, j=data$tmp_col_id, dimnames= list(rowLabels,colLabels), ...))
+    
+  } else {
+    
+    data = df %>% 
+      select(!!rowVar,!!colVar,!!valueVar) %>% 
+      inner_join(rows, by=as.character(rowVar)) %>% 
+      inner_join(cols, by=as.character(colVar)) %>% 
+      rename(tmp_value = !!valueVar) %>%
+      select(tmp_row_id, tmp_col_id, tmp_value) %>%
+      collect()
+    #browser()
+    return(Matrix::sparseMatrix(i = data$tmp_row_id, j=data$tmp_col_id, x=data$tmp_value, dimnames=list(rowLabels,colLabels), ...))
+    
+  }
+  
+}
+
+
+
+#' Converts a tidy dataframe into a Matrix::sparseMatrix 
+#' 
+#' offloading the majority of processing onto sql if dbplyr tables are involved
+#' 
+#' @param df - a df
+#' @param rowVar - the dataframe columns(s) which define the matrix row, quoted by vars(...) - typically this is the observation id
+#' @param outcomeVar - (optional) the dataframe column continaing the outcome
+#' @param factorise - convert outcomeVar to a factor (default FALSE)
+#' @param ... - other parameters passed to as.factor
+#' @return a dbplyr dataframe containing the grouped function
+#' @export
+collectOutcomeVector = function(df, rowVar, outcomeVar, factorise = TRUE, ...) {
+  rowVar = ensym(rowVar)
+  outcomeVar = ensym(outcomeVar)
+  df = df %>% ungroup()
+  
+  rows = df %>% select(!!rowVar, !!outcomeVar) %>% distinct() %>% arrange(!!rowVar)
+  
+  outcomeVector = rows %>% pull(!!outcomeVar)
+  if (factorise) {
+    outcomeVector = as.factor(outcomeVector, ...)
+  }
+  
+  return(outcomeVector)
+}
+
+
+
+
+#' Converts a tidy dataframe into a Matrix::sparseMatrix of features & associated outcome vector
+#' 
+#' offloading the majority of processing onto sql if dbplyr tables are involved.
+#' 
+#' @param df - a df
+#' @param sampleVar - the dataframe columns(s) which define the matrix row, quoted by vars(...) - typically this is the observation id ( see createSequentialIdentifier(...) )
+#' @param outcomeVar - the dataframe columns(s) which define the matrix columns, quoted by vars(...) - typically this is the feature id
+#' @param featureVar - the dataframe columns(s) which define the matrix columns, quoted by vars(...) - typically this is the feature id
+#' @param valueVar - the name of the value variable. (#TODO could be missing - in which case use binary)
+#' @param rowNameVar - (optional) the dataframe column continaing the row names otherwise use rowVar
+#' @param colNameVar - (optional) the dataframe column continaing the column names otherwise use colVar
+#' @param ... - other parameters passes to Matrix::sparseMatrix & as.factor (for outcomes)
+#' @return a dbplyr dataframe containing the grouped function
+#' @export
+collectAsTrainingSet = function(df, sampleVar, outcomeVar, featureVar, valueVar=NULL, featureNameVar=NULL, factorise = TRUE, ...) {
+  valueVar = tryCatch(ensym(valueVar), error=function(e) NULL)
+  featureNameVar = tryCatch(ensym(rowNameVar), error=function(e) NULL)
+  sampleVar = ensym(sampleVar)
+  featureVar = ensym(featureVar)
+  outcomeVar = ensym(outcomeVar)
+  df = df %>% ungroup()
+  
+  out = list()
+  
+  # group data by rowVar and generate a sequential row_id and label
+  rows = df %>% select(!!sampleVar, !!outcomeVar) %>% distinct() %>% arrange(!!sampleVar) %>% mutate(sampleIndex = row_number())
+  
+  nonUnique = rows %>% group_by(!!sampleVar) %>% summarise(count = n()) %>% filter(count > 1) %>% collect();
+  if(nrow(nonUnique) != 0) {
+    print(nonUnique)
+    stop("non unique outcomes detected in data set")
+  }
+  
+  out$rowLabels = rows %>% pull(!!sampleVar)
+  out$outcome = rows %>% pull(!!outcomeVar)
+  if (factorise) {out$outcome = as.factor(out$outcome, ...)}
+  
+  # group data by colVar and generate a sequential col_id and label
+  if (identical(featureNameVar,NULL)) {
+    cols = df %>% select(!!featureVar) %>% distinct() %>% arrange(!!featureVar) %>% mutate(featureIndex = row_number())
+    out$colLabels = cols %>% pull(!!featureVar)
+  } else {
+    cols = df %>% group_by(!!featureVar) %>% summarise(featureLabel = min(!!featureNameVar)) %>% arrange(!!featureVar) %>% mutate(featureIndex = row_number())
+    out$colLabels = cols %>% pull(featureLabel) %>% make.unique(sep=" ")
+  }
+  
+  if (identical(valueVar,NULL)) {
+    
+    # There is no value so we use the pattern matrix form of Matrix::sparseMatrix
+    data = df %>% 
+      select(!!sampleVar,!!featureVar) %>% 
+      inner_join(rows, by=as.character(sampleVar)) %>% 
+      inner_join(cols, by=as.character(featureVar)) %>% 
+      select(sampleIndex, featureIndex) %>%
+      collect()
+    #browser()
+    out$matrix = Matrix::sparseMatrix(i = data$sampleIndex, j=data$featureIndex, dimnames= list(rowLabels,colLabels), ...)
+    
+  } else {
+    
+    data = df %>% 
+      select(!!sampleVar,!!featureVar,!!valueVar) %>% 
+      inner_join(rows, by=as.character(sampleVar)) %>% 
+      inner_join(cols, by=as.character(featureVar)) %>% 
+      rename(tmp_value = !!valueVar) %>%
+      select(sampleIndex, featureIndex, tmp_value) %>%
+      collect()
+    #browser()
+    out$matrix = Matrix::sparseMatrix(i = data$sampleIndex, j=data$featureIndex, x=data$tmp_value, dimnames=list(out$rowLabels,out$colLabels), ...)
+    
+  }
+
+  return(out)
+}
+
+#' Sparse matrix conversion for liblinear
+#' 
+#' Converts a Matrix::sparseMatrix to a SparseM::matrix.csr without blowing up the computer
+#' 
+#' @param X as Matrix::sparseMatrix
+#' @return a SparseM::matrix.csr
+#' @export
+sparseMatrixToSparseMCsr = function(X) {
+  X.csc <- new("matrix.csc", ra = X@x,
+               ja = X@i + 1L,
+               ia = X@p + 1L,
+               dimension = X@Dim)
+  X.csr <- SparseM::as.matrix.csr(X.csc)
+  return (X.csr)
 }

@@ -22,7 +22,7 @@ calculateDiscreteSelfInformation = function(df, discreteVars, method="Histogram"
 #' @param df - may be grouped, in which case the grouping is interpreted as different types of discrete variable
 #' @param groupVars - the columns of the discrete value quoted by the vars() function (e.g. ggplot facet_wrap)
 #' @param countVar - (optional) if this datafram represents summary counts, the columns of the summary variable.
-#' @param mm - Apply a miller-madow adjustment to the result
+#' @param mm - Apply a miller-madow adjustment to the result? default = TRUE
 #' @return a dataframe containing the distinct values of the discrete variable, per group, with columns I_x, and method
 #' @import dplyr
 #' @export
@@ -39,7 +39,7 @@ calculateSelfInformation_Histogram = function(df, groupVars, countVar=NULL, mm=T
   if (mm) {
     tmp = tmp %>% mutate(
       C_x = n(),
-      I_x = -log(p_x) + as.double(C_x-1)/(2*N*p_x*C_x),
+      I_x = -log(p_x) + as.double(C_x-1)/(2*N*p_x*C_x), #the miller-madow adjustment
       method = "Histogram MM"
     ) %>% select(-C_x)
   } else {

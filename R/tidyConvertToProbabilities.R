@@ -75,8 +75,6 @@ probabilitiesFromDiscrete = function(df, discreteVars, sampleVars, countVar=NULL
   grps = df %>% groups()
   countVar = tryCatch(ensym(countVar),error = function(e) NULL)
   
-  #
-  
   # groupwise count creates an N and N_x  column based on groupVars, and countVar
   df = df %>% groupwiseCount(groupVars, !!countVar, summarise=TRUE) %>% mutate(
     p_x = N_x/N,

@@ -5,11 +5,14 @@ library(tidyinfostats)
 set.seed(101)
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = ":memory:")
 
-testData = bloodResultsSimulation(1000)
+testData = bloodResultsSimulation(1000)$data
 testDataSQL = con %>% copy_to(testData)
 
 tidyUSA = tidyUSArrests()
-tidyUSASQL = con %>% copy_to(tidyUSArrests())
+tidyUSASQL = con %>% copy_to(tidyUSA)
+
+tidyIris = tidyIris()
+tidyIrisSQL = con %>% copy_to(tidyIris)
 
 #### Sparse matrix ----
 test_that("collect as sparse matrix matches input", {
@@ -18,11 +21,29 @@ test_that("collect as sparse matrix matches input", {
 })
 
 test_that("outcome vector matches expectation",{
-  
   expect_equal(
     testData %>% collectOutcomeVector(sample,outcome),
     testDataSQL %>% collectOutcomeVector(sample,outcome)
   )
+})
+
+test_that("collect as training set replicates iris data set",{
+  tmp = tidyIris %>% collectAsTrainingSet(sample, outcome, feature, value)
+  expect_equal(
+    unname(tmp$matrix[,1]), 
+    iris$Petal.Length
+  )
+  expect_equal(
+    tmp$outcome,
+    iris$Species
+  )
+})
+
+test_that("collect as training set produces same output in SQL",{
+  tmp = tidyIris %>% collectAsTrainingSet(sample, outcome, feature, value)
+  tmp2 = tidyIrisSQL %>% collectAsTrainingSet(sample, outcome, feature, value)
+  expect_equal(tmp$matrix, tmp2$matrix)
+  expect_equal(tmp$outcome, tmp2$outcome)
 })
 
 ### Group mutate ----
