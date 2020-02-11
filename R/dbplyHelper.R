@@ -518,6 +518,7 @@ collectAsTrainingSet = function(df, sampleVar, outcomeVar, featureVar, valueVar=
 #' 
 #' @param X as Matrix::sparseMatrix
 #' @return a SparseM::matrix.csr
+#' @import SparseM
 #' @export
 sparseMatrixToSparseMCsr = function(X) {
   X.csc <- new("matrix.csc", ra = X@x,
