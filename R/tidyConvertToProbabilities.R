@@ -138,10 +138,10 @@ probabilitiesFromConfusionMatrix = function(df, tpVar, fpVar, fnVar, tnVar) {
       p_x1y0 = as.double(!!fnVar)/tmp_total,
       p_x0y1 = as.double(!!fpVar)/tmp_total,
       p_x0y0 = as.double(!!tnVar)/tmp_total,
-      p_x1 = p_x1y1+px1y0,
-      p_x0 = p_x0y1+px0y0,
-      p_y1 = p_x1y1+px0y1,
-      p_y0 = p_x1y0+px0y0
+      p_x1 = p_x1y1+p_x1y0,
+      p_x0 = p_x0y1+p_x0y0,
+      p_y1 = p_x1y1+p_x0y1,
+      p_y0 = p_x1y0+p_x0y0
     ) %>% select(-tmp_total)
   )
 }
@@ -152,10 +152,10 @@ probabilitiesFromConfusionMatrix = function(df, tpVar, fpVar, fnVar, tnVar) {
 #' a table of marginal frequencies in a dplyr friendly way. 
 #' 
 #' @param df a dataframe containing one observation per row
-#' @param x1y1Var the datatable column containing frequency of cooccurrences of events x1 and y1
-#' @param x1Var the datatable column containing frequency of occurrences of event x1
-#' @param y1Var the datatable column containing frequency of occurrences of event y1
-#' @param totalVar the datatable column containing total number of events
+#' @param x1y1Var the datatable column containing frequency of cooccurrences of events x1 and y1 (true positives)
+#' @param x1Var the datatable column containing frequency of occurrences of event x1 (observed positives)
+#' @param y1Var the datatable column containing frequency of occurrences of event y1 (predicted positives)
+#' @param totalVar the datatable column containing total number of events (all observations)
 #' @return the datatable with additional columns for all the probabilities associated with each outcome (i.e. a 2x2 confusion matrix)
 #' @import dplyr
 #' @export

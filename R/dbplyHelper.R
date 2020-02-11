@@ -59,6 +59,21 @@ groupMutate = function(df, ...) {
   }
 }
 
+#' Unarrange an ordered data set
+#' 
+#' @param remote_df - a df which may be a dbplyr table
+#' @return a dbplyr dataframe without any ordering
+#' @export
+unarrange = function(remote_df) {
+  if ("tbl_sql" %in% class(remote_df)) {
+    existing_groups = groups(remote_df)
+    remote_df = remote_df %>% collapse()
+    remote_df = tbl(remote_df$src$con, sql_render(remote_df))
+    remote_df = group_by(remote_df, !!!existing_groups)
+  }
+  return(remote_df)
+}
+
 #' Renames groups extending accross multiple columns do that subgroups have sequentail id
 #' 
 #' Sometime simpler to rename multiple grouping columns as one single column which encodes all the possible combinations.

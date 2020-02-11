@@ -66,12 +66,12 @@ calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar
 	continuousVar = ensym(continuousVar)
 	joinList = df %>% joinList(discreteVars)
 	
-	df = select(df, !!!grps,!!!discreteVars,!!continuousVar)
+	df = df %>% unarrange() %>% select(!!!grps,!!!discreteVars,!!continuousVar)
 	# this is confusing because groups mean 2 things here - the 
 	# different types of Y (grps) which should be preserved and the categorical X 
 	# has group counts (N) and subgroup counts (N_x) 
 	
-	tmp = df %>% groupwiseCount(discreteVars) %>% mutate(y_continuous=!!continuousVar)
+	tmp = df %>% groupwiseCount(discreteVars) %>% mutate(y_continuous=!!continuousVar) 
 	
 	# the knn approach without using neighbours - i.e. a k wide sliding window
 	tmp4 = tmp %>% group_by(!!!grps) %>% arrange(y_continuous) %>% mutate(rank = row_number())

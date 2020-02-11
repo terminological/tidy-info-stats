@@ -63,7 +63,7 @@ calculateConfusionMatrixStats = function(df) {
 		
 		accuracy = p_x1y1+p_x0y0,
 		f1 = 2*precision*recall/(precision+recall),
-		mcc = (p_x1y1*p_x0y0 - p_x0y1*p_x1y0) / sqrt(p_x1*p_x0*p_y1*py0),
+		mcc = (p_x1y1*p_x0y0 - p_x0y1*p_x1y0) / sqrt(p_x1*p_x0*p_y1*p_y0),
 		informedness = true_pos_rate+true_neg_rate-1,
 		youdens_j = informedness
 
