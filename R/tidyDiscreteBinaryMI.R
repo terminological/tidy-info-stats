@@ -46,7 +46,7 @@ calculateDiscreteAbsentValuesMI = function(df, discreteVars, sampleVars, sampleC
 	# substituting Abs for X and our X for Y - = p_X_given_Y=y becomes p_abs_given_X=x 
 	tmp2 = tmp %>% mutate(
 			# we need to know I_given_unlabelled_and_x
-	    p_x = N_x_exp / N_exp,
+	    p_x = as.double(N_x_exp)/ N_exp,
 			p_abs = as.double(N_exp-N_obs)/N_exp,
 			p_abs_given_x = as.double(N_x_exp-N_x_obs)/N_x_exp,
 			N_abs = N_exp-N_obs,
@@ -92,7 +92,7 @@ calculateDiscretePresentValuesMI = function(df, discreteVars, sampleVars, sample
 	# substituting Pres for X and our X for Y - = p_X_given_Y=y becomes p_abs_given_X=x 
 	tmp2 = tmp %>% mutate(
 			# we need to know I_given_unlabelled_and_x
-	    p_x = N_x_exp / N_exp,
+	    p_x = as.double(N_x_exp)/ N_exp,
 			p_pres = as.double(N_obs)/N_exp,
 			p_pres_given_x = as.double(N_x_obs)/N_x_exp,
 			I_pres_given_x = ifelse(p_pres_given_x <= 0, 0 ,p_pres_given_x*log(p_pres_given_x/p_pres))

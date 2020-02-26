@@ -27,13 +27,14 @@ collectAsTrainingSet(
 \item{valueVar}{- the name of the value variable. (#TODO could be missing - in which case use binary)}
 
 \item{...}{- other parameters passes to Matrix::sparseMatrix & as.factor (for outcomes)}
-
-\item{rowNameVar}{- (optional) the dataframe column continaing the row names otherwise use rowVar}
-
-\item{colNameVar}{- (optional) the dataframe column continaing the column names otherwise use colVar}
 }
 \value{
-a dbplyr dataframe containing the grouped function
+a list with the following elements:
+
+* rowLabels - the labels for each row in order
+* colLabels - the feature labels in order
+* matrix - a Matrix::sparseMatrix of the data, with values as doubles
+* outcome - a vector of outcomes (probably as a factor)
 }
 \description{
 offloading the majority of processing onto sql if dbplyr tables are involved.

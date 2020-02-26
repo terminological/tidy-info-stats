@@ -39,12 +39,7 @@ test_that("collect as training set replicates iris data set",{
   )
 })
 
-test_that("collect as training set produces same output in SQL",{
-  tmp = tidyIris %>% collectAsTrainingSet(sample, outcome, feature, value)
-  tmp2 = tidyIrisSQL %>% collectAsTrainingSet(sample, outcome, feature, value)
-  expect_equal(tmp$matrix, tmp2$matrix)
-  expect_equal(tmp$outcome, tmp2$outcome)
-})
+
 
 ### Group mutate ----
 test_that("groupMutate behaves like tidy mutate", {
@@ -67,40 +62,21 @@ describe("dbplyr results same as local data frames", {
     expect_equal(tmp, tmp2)
   })
   
-  it("produces same result for KWindow MI", {
-    tmp = testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KWindow")
-    tmp2 = testDataSQL %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KWindow") %>% collect()
-    expect_equal(tmp$I, tmp2$I, tolerance=0.001)
-    expect_equal(tmp$I_sd, tmp2$I_sd, tolerance=0.001)
+  it("collect as training set produces same output in SQL",{
+    tmp = tidyIris %>% collectAsTrainingSet(sample, outcome, feature, value)
+    tmp2 = tidyIrisSQL %>% collectAsTrainingSet(sample, outcome, feature, value)
+    expect_equal(tmp$matrix, tmp2$matrix)
+    expect_equal(tmp$outcome, tmp2$outcome)
   })
   
-  it("produces same result for SGolay MI", {
-    tmp = testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "SGolay")
-    tmp2 = testDataSQL %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "SGolay") %>% collect()
-    expect_equal(tmp$I, tmp2$I, tolerance=0.001)
-    
-  })
-  
+  #TODO: move to test discretisation
   it("produces same result for discretisation by value", {
     tmp = testData %>% group_by(feature) %>% tidyinfostats::discretise(value, value_discrete, bins=3, method = "ByValue", noUnicode=TRUE)
     tmp2 = testDataSQL %>% group_by(feature) %>% tidyinfostats::discretise(value, value_discrete, bins=3, method = "ByValue") %>% collect()
     expect_equal(tmp$value_discrete, tmp2$value_discrete)
   })
   
-  it("produces same result for MI by discretisation by rank - histogram", {
-    tmp = testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByRank", bins=100, noUnicode=TRUE)
-    tmp2 = testDataSQL %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByRank", bins=100) %>% collect()
-    expect_equal(tmp$I, tmp2$I, tolerance=0.001)
-    
-  })
-  
-  it("produces same result for MI by discretisation by value - grassberger", {
-    tmp = testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByValue", mutualInfoMethod = "Grassberger")
-    tmp2 = testDataSQL %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "Discretise", discretiseMethod="ByValue", mutualInfoMethod = "Grassberger")
-    expect_equal(tmp$I, tmp2$I, tolerance=0.001)
-    
-  })
-  
+  #TODO: move to test probability
   it("produces same result for PDF estimation - SGolay", {
     tmp = testData %>% group_by(feature,outcome) %>% probabilitiesFromContinuous(value, method="SGolay")
     tmp2 = testDataSQL %>% group_by(feature,outcome) %>% probabilitiesFromContinuous(value, method="SGolay") %>% collect()

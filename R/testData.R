@@ -1,3 +1,6 @@
+# TODO: move this to data_raw & use usethis::use_data
+
+
 
 #' tidy dataframe of the USArrests data
 #' 
@@ -58,6 +61,7 @@ tidyIris = function() {
 #' tidy dataframe of the simulation of blood test results with known distributions for individual outcomes.
 #' 
 #' @import dplyr
+#' @import ClassifierResult
 #' @export
 bloodResultsSimulation = function(n,seed = 101) {
 
@@ -96,5 +100,55 @@ bloodResultsSimulation = function(n,seed = 101) {
   ))
   
 }
+# 
+# ```{r}
+# # devtools::load_all("..")
+# testData = bloodResultsSimulation(1000)$data
+# 
+# #### Continuous probability estimation ----
+# 
+# ggplot(
+#   testData %>% group_by(feature,outcome) %>% tidyinfostats::probabilitiesFromContinuous(value, method="SGolay"),
+#   aes(x=value,y=p_x, colour=outcome)) + geom_point() + facet_wrap(vars(feature))
+# 
+# # debug(probabilitiesFromContinuous_SGolay)
+# # debug(applySGolayFilter)
+# 
+# ggplot(
+#   testData %>% group_by(feature,outcome) %>% tidyinfostats::probabilitiesFromContinuous(value, method="Kernel"),
+#   aes(x=value,y=p_x, colour=outcome)) + geom_point() + facet_wrap(vars(feature))
+# 
+# ```
 
-
+missingData = function() {
+  # start with a defintion for our test data
+  # feature A is present in 80% of outcome 1; 20% of outcome 2 - there is information in missingness
+  # feature B is present in 10% of outcome 1; 10% of outcome 2 - there is no information in missingness
+  # feature C is present in 40% of outcome 1; 20% of outcome 2 - there is information but less than in A
+  # feature D is present in 100% of outcome 1; 100% of outcome 2 - not missing / no information
+  missingness = tibble(
+    feature = c("A","A","B","B","C","C","D","D"),
+    outcome = c(1,2,1,2,1,2,1,2),
+    presence = c(0.8,0.2,0.1,0.1,0.4,0.2,1,1)
+  )
+  
+  # outcome 1 seen in 60% of cases outcome 2 in 40%
+  expectedness = tibble(
+    outcome = c(1,2),
+    expected = c(60,40)
+  )
+  
+  # generate a complete data set with a random value and missingness flag
+  equivData = expectedness %>% left_join(missingness, by="outcome") %>% group_by(feature,outcome,expected,presence) %>% group_modify(function(d,g,..) {
+    return(tibble(
+      value = sample.int(4,size = g$expected, replace = TRUE),
+      status = c(rep("present",round(g$presence*g$expected)),rep("absent",round((1-g$presence)*g$expected)))
+    ))
+  }) %>% group_by(feature) %>% arrange(outcome) %>% mutate(sample = c(1:100))
+  
+  # create test data set with missing values
+  data = equivData %>% filter(status != "absent")
+  
+  return(list(missingness= missingness, expectedness = expectedness, data=data,equivData=equivData))
+  
+}

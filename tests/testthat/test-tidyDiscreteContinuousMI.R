@@ -94,6 +94,8 @@ describe("handles moderate data", {
     expect_true((error < 0.2) %>% reduce(`&&`))
   })
   
+  #TODO: poor quality estimates not tested
+  
 })
 
 #### Dbplyr  ----
@@ -106,6 +108,7 @@ describe("dbplyr results same as local data frames", {
     tmp = result$I - resultSQL$I
     expect_true((tmp < 0.001) %>% reduce(`&&`))
   })
+  
   
   # it("produces same result for KWindow MI", {
   #   tmp = testData %>% group_by(feature) %>% tidyinfostats::calculateDiscreteContinuousMI(vars(outcome), value, method = "KWindow")

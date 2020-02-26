@@ -2,33 +2,11 @@ context("Missing values MI")
 
 describe("information content of missing features", {
   
-  # start with a defintion for our test data
-  # feature A is present in 80% of outcome 1; 20% of outcome 2 - there is information in missingness
-  # feature B is present in 10% of outcome 1; 10% of outcome 2 - there is no information in missingness
-  # feature C is present in 40% of outcome 1; 20% of outcome 2 - there is information but less than in A
-  # feature D is present in 100% of outcome 1; 100% of outcome 2 - not missing / no information
-  missingness = tibble(
-    feature = c("A","A","B","B","C","C","D","D"),
-    outcome = c(1,2,1,2,1,2,1,2),
-    presence = c(0.8,0.2,0.1,0.1,0.4,0.2,1,1)
-  )
-  
-  # outcome 1 seen in 60% of cases outcome 2 in 40%
-  expectedness = tibble(
-    outcome = c(1,2),
-    expected = c(60,40)
-  )
-  
-  # generate a complete data set with a random value and missingness flag
-  equivData = expectedness %>% left_join(missingness, by="outcome") %>% group_by(feature,outcome,expected,presence) %>% group_modify(function(d,g,..) {
-    return(tibble(
-      value = sample.int(4,size = g$expected, replace = TRUE),
-      status = c(rep("present",round(g$presence*g$expected)),rep("absent",round((1-g$presence)*g$expected)))
-    ))
-  }) %>% group_by(feature) %>% arrange(outcome) %>% mutate(sample = c(1:100))
-  
-  # create test data set with missing values
-  data = equivData %>% filter(status != "absent")
+  testData = missingData()
+  data = testData$data  %>% group_by(feature)
+  equivData = testData$equivData 
+  con <- DBI::dbConnect(RSQLite::SQLite(), dbname = ":memory:")
+  dataSQL = con %>% copy_to(data)
 
   # cross check counts of present and missing values in both data sets  
   # data2 = data %>%  
@@ -75,6 +53,18 @@ describe("information content of missing features", {
     expect_true(isTRUE(all.equal(test, reference2, tolerance=0.00001)))
     expect_true(isTRUE(all.equal(reference, reference2, tolerance=0.00001)))
     
+  })
+  
+  it("produces same result in SQL", {
+    tmp = data %>% group_by(feature) %>% calculateDiscreteAbsentValuesMI(vars(outcome), vars(sample))
+    tmp2 = dataSQL %>% group_by(feature) %>% calculateDiscreteAbsentValuesMI(vars(outcome), vars(sample)) %>% collect()
+    expect_equal(tmp$I, tmp2$I, tolerance=0.001)
+  })
+  
+  it("produces same result in SQL", {
+    tmp = data %>% group_by(feature) %>% calculateDiscretePresentValuesMI(vars(outcome), vars(sample))
+    tmp2 = dataSQL %>% group_by(feature) %>% calculateDiscretePresentValuesMI(vars(outcome), vars(sample)) %>% collect()
+    expect_equal(tmp$I, tmp2$I, tolerance=0.001)
   })
   
   #TODO: check when there are multiple values for every a given sample id (same feature) we get same as if there is none.

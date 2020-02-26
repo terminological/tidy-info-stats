@@ -199,7 +199,32 @@ collectDf = function(df, collect) {
 #### Digamma calculation ----
 
 #' a set of the first 50 digamma values
-digammaLookup = tibble(n = c(1:50), digamma = digamma(c(1:50)))
+# digammaLookup = tibble(n = c(1:50), digamma = digamma(c(1:50)))
+
+digammaCache = function() {
+  digammaTables = NULL
+  get = function(df) {
+    # check if con has a known table in cache
+    for (table in digammaTables) {
+      if (identical(table$src$con, df$src$con)) return(table)
+    }
+    # copy digamma dataframe to remote
+    digammaLookup =  tibble(n = c(1:50), digamma = digamma(c(1:50)))
+    try(db_drop_table(df$src$con, "##tmpDigammaLookup"),TRUE) # drop the temporary table if possible as overwrite=TRUE doesn't work for tmp tables in MSSQL
+    table = df$src$con %>% copy_to(digammaLookup, name="tmpDigammaLookup",overwrite=TRUE)
+    # TODO: catch errors
+    if (is.null(digammaTables)) {
+      # dunno how to properly append items to lists in R without collapsing sublist. This seems to work.
+      digammaTables <<- list(table)  
+    } else {
+      digammaTables <<- append(digammaTables,list(table))
+    }
+    return(table)
+  }
+  list(get=get)
+}
+
+digammaTable = digammaCache()
 
 #' SQL Digamma function
 #' 
@@ -214,8 +239,9 @@ calculateDigamma = function(df, inputVar, outputVar) {
   inputVar = ensym(inputVar)
   outputVar = ensym(outputVar)
   if ("tbl_sql" %in% class(df)) {
+    digammaT = digammaTable$get(df)
     tmp = df %>% 
-      left_join(digammaLookup %>% rename(!!inputVar := n, !!outputVar := digamma), by=as.character(inputVar), copy=TRUE) %>%
+      left_join(digammaT %>% rename(!!inputVar := n, !!outputVar := digamma), by=as.character(inputVar)) %>%
       mutate(!!outputVar := ifelse(is.na(!!outputVar), log(!!inputVar-1) + 1.0/(2*(!!inputVar-1) - 1.0/(12*(!!inputVar-1)^2) ), !!outputVar))
     return(tmp)
   } else {

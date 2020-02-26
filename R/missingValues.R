@@ -26,16 +26,15 @@ adjustMIForAbsentValues = function(df, discreteVars, sampleVars, mutualInformati
 	baselineMI = mutualInformationFn(df, discreteVars, ...) %>% mutate(tmp_join = 1L) %>% compute()
 	
 	tmp3 = df %>% calculateDiscreteAbsentValuesMI(discreteVars, sampleVars, ...) %>%
-	  rename(I_given_abs = I) %>% mutate(tmp_join=1) %>% compute()
+	  rename(I_given_abs = I) %>% select(-I_sd) %>% mutate(tmp_join=1) %>% compute()
 	
 	tmp4 = tmp3 %>% left_join(
-			baselineMI %>% select(-N) %>% rename(I_given_pres = I, method_sub = method), by=innerJoinCols
+			baselineMI %>% rename(N_pres = N, I_given_pres = I, method_sub = method), by=innerJoinCols
 		) %>% mutate(
 			I_given_pres = ifelse(is.na(I_given_pres),0,I_given_pres),
 			method = paste0("Absent + ",method_sub),
-			I = I_given_pres+I_given_abs,
-			I_sd = as.double(NA)
-		)
+			I = I_given_pres+I_given_abs
+		) %>% select(-method_sub)
 	
 	return(tmp4)
 }

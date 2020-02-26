@@ -9,13 +9,13 @@ probabilitiesFromCounts(df, x1y1Var, x1Var, y1Var, totalVar)
 \arguments{
 \item{df}{a dataframe containing one observation per row}
 
-\item{x1y1Var}{the datatable column containing frequency of cooccurrences of events x1 and y1}
+\item{x1y1Var}{the datatable column containing frequency of cooccurrences of events x1 and y1 (true positives)}
 
-\item{x1Var}{the datatable column containing frequency of occurrences of event x1}
+\item{x1Var}{the datatable column containing frequency of occurrences of event x1 (observed positives)}
 
-\item{y1Var}{the datatable column containing frequency of occurrences of event y1}
+\item{y1Var}{the datatable column containing frequency of occurrences of event y1 (predicted positives)}
 
-\item{totalVar}{the datatable column containing total number of events}
+\item{totalVar}{the datatable column containing total number of events (all observations)}
 }
 \value{
 the datatable with additional columns for all the probabilities associated with each outcome (i.e. a 2x2 confusion matrix)
