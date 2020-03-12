@@ -18,8 +18,7 @@ Imports:
   signal,
   infotheo
 Remotes: 
-  thomasp85/patchwork,
-  terminological/classifier-result
+  thomasp85/patchwork
 Suggests: 
   knitr,
   rmarkdown,

@@ -14,7 +14,7 @@ library(infotheo)
 library(tidyverse)
 library(ggplot2)
 library(devtools)
-library(ClassifierResult)
+# library(ClassifierResult)
 #library(tidyinfostats)
 devtools::load_all("..")
 set.seed(101)
@@ -28,9 +28,9 @@ Using set of distributions:
 ```{r}
 devtools::load_all("~/Git/tidy-info-stats")
 dists = list(
-  normal = NormalDistribution$new(mean = 1, sd = 0.5),
-  logNormal = LogNormalDistribution$new(mode = 1, sd = 0.5),
-  uniform = UniformDistribution$new(min = 0,max = 2)
+  normal = ClassifierResult::NormalDistribution$new(mean = 1, sd = 0.5),
+  logNormal = ClassifierResult::LogNormalDistribution$new(mode = 1, sd = 0.5),
+  uniform = ClassifierResult::UniformDistribution$new(min = 0,max = 2)
 )
 
 dists$normal$plot(-2,5)
@@ -136,7 +136,7 @@ ggplot(out.summ, aes(x=N,colour=method,fill=method))+
 Assume a continuous distribution
 
 ```{r}
-hb = ConditionalDistribution$new()
+hb = ClassifierResult::ConditionalDistribution$new()
 hb$withDistribution(LogNormalDistribution$new(mode=12,sd=2), "asymptomatic", 0.75)
 hb$withDistribution(LogNormalDistribution$new(mode=8,sd=3), "tired", 0.25)
 hb$withDistribution(LogNormalDistribution$new(mode=4,sd=5), "unwell", 0.25)
@@ -147,7 +147,7 @@ hb$plot(0,20)
 And another
 
 ```{r}
-k = ConditionalDistribution$new()
+k = ClassifierResult::ConditionalDistribution$new()
 k$withDistribution(NormalDistribution$new(mean=1,sd=0.5), "unwell", 0.125)
 k$withDistribution(NormalDistribution$new(mean=2,sd=1), "asymptomatic", 0.75)
 k$withDistribution(NormalDistribution$new(mean=8,sd=3), "tired", 0.125)
