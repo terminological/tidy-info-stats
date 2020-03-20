@@ -334,12 +334,13 @@ applySGolayFilter = function(df, continuousVar, outputVar, k_05, p, m) {
       N = max(N,na.rm = TRUE), 
       k_05 = max(k_05,na.rm = TRUE),
       !!outputVar := sum(coefficientAdj*tmp_value, na.rm = TRUE), 
-      !!continuousVar := sum(tmp_value*ifelse(tmp_id==sample,1.0,0.0), na.rm = TRUE)
+      !!continuousVar := sum(tmp_value*ifelse(tmp_id==sample,1.0,0.0), na.rm = TRUE),
+      tmp_id = sum(tmp_id*ifelse(tmp_id==sample,1.0,0.0), na.rm = TRUE)
     ) %>% mutate(
       !!outputVar := ifelse(N<(k_05*2+1),NA,!!outputVar)
     ) %>% compute()
     
-    return(tmp2 %>% select(-sample, -k_05))
+    return(df %>% left_join(tmp2 %>% select(-sample, -k_05), by="tmp_id") %>% select(-tmp_id))
     
   } else {
     
@@ -352,7 +353,7 @@ applySGolayFilter = function(df, continuousVar, outputVar, k_05, p, m) {
         if (k < samples-1) {
           temp_est = signal::sgolayfilt(d$tmp_x_continuous, p=p, n=k, m=m, ts=1.0/samples)
           return(
-            tibble(
+            d %>% mutate(
               N = samples,
               !!continuousVar := d$tmp_x_continuous,
               !!outputVar := temp_est
@@ -360,7 +361,7 @@ applySGolayFilter = function(df, continuousVar, outputVar, k_05, p, m) {
           )
         } else {
           return(
-            tibble(
+            d %>% mutate(
               N = samples, # TODO
               !!continuousVar := d$tmp_x_continuous,
               !!outputVar := rep(NA,length(d$tmp_x_continuous))
@@ -559,7 +560,6 @@ collectAsTrainingSet = function(df, sampleVar, outcomeVar, featureVar, valueVar=
 #' 
 #' @param X as Matrix::sparseMatrix
 #' @return a SparseM::matrix.csr
-#' @import SparseM
 #' @export
 sparseMatrixToSparseMCsr = function(X) {
   X.csc <- new("matrix.csc", ra = X@x,
@@ -569,3 +569,12 @@ sparseMatrixToSparseMCsr = function(X) {
   X.csr <- SparseM::as.matrix.csr(X.csc)
   return (X.csr)
 }
+
+#' A row wise dataframe iterator in for loops
+#' 
+#' Converts a dataframe into a list of lists
+#' 
+#' @param x a data frame
+#' @return a list of lists
+#' @export
+byRow = function(x) lapply(seq_len(nrow(x)), function(i) lapply(x,"[",i))

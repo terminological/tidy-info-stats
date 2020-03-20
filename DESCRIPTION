@@ -16,7 +16,9 @@ Imports:
   tidyverse,
   patchwork,
   signal,
-  infotheo
+  infotheo,
+  SparseM,
+  RANN
 Remotes: 
   thomasp85/patchwork
 Suggests: 
