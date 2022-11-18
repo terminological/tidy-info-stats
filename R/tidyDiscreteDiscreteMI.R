@@ -7,7 +7,7 @@
 #' @param groupYVars - the column(s) of the discrete value (Y) quoted by vars(...)
 #' @param method - the method employed - valid options are "Empirical","MontgomerySmith","Compression","Histogram","Entropy","Grassberger"
 #' @param ... - the other parameters are passed onto the implementations
-#' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @return a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @export
 calculateDiscreteDiscreteMI =  function(df, groupXVars, groupYVars, method="Grassberger", ...) {
   switch (method,

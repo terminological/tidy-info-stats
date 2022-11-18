@@ -79,7 +79,7 @@ calculateContinuousEntropy_Quantile = function(df, continuousVar, k_05=10, ...) 
 #' @param continuousVar - the column of the continuous value (Y)
 #' @param probabilityMethod - the method of calculating a PDF - valid options are "SGolay", "Kernel"
 #' @param ... - passed onto probabilitiesFromContinuous
-#' @return a dataframe containing the disctinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
+#' @return a dataframe containing the distinct values of the groups of df, and for each group an entropy value (H). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
 calculateContinuousEntropy_PDF = function(df, continuousVar, probabilityMethod="SGolay", ...) {

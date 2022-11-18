@@ -1,6 +1,6 @@
 #' calculate mutual information between a categorical value (X) and a continuous value (Y)
 #' 
-#' This is specifically designed to supprt tidy data where there are many features, with associated values and outcomes in different columns of a dataframe or database table
+#' This is specifically designed to support tidy data where there are many features, with associated values and outcomes in different columns of a dataframe or database table
 #'
 #' N.B. this result is the mutual information between feature value and outcome GIVEN that the feature is present. It does not account for missing values.
 #' 
@@ -9,7 +9,7 @@
 #' @param continuousVar - the column of the continuous value (Y)
 #' @param method - the method employed - valid options are "KWindow","KNN","Discretise","Grassberger","Compression","Entropy","Quantile","PDF","SGolay","Kernel"
 #' @param ... - the other parameters are passed onto the implementations
-#' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @return a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
 #' @examples 
@@ -56,7 +56,7 @@ calculateDiscreteContinuousMI = function(df, discreteVars, continuousVar, method
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
 #' @param k_05 - half the sliding window width - this should be a small number like 1,2,3.
-#' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @return a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
 calculateDiscreteContinuousMI_KWindow = function(df, discreteVars, continuousVar, k_05=4, ...) { 
@@ -163,8 +163,8 @@ calculateDiscreteContinuousMI_Discretise = function(df, discreteVars, continuous
 #' @param discreteVars - the column(s) of the categorical value (X) quoted by vars(...)
 #' @param continuousVar - the column of the continuous value (Y)
 #' @param k_05 - half the sliding window width - this should be a small number like 1,2,3.
-#' @param useKWindow - will switch to using the much faster KWindow estimator for larger sample sizes (>500) when the difference between the 2 methods is negligable
-#' @return a dataframe containing the disctinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
+#' @param useKWindow - will switch to using the much faster KWindow estimator for larger sample sizes (>500) when the difference between the 2 methods is negligible
+#' @return a dataframe containing the distinct values of the groups of df, and for each group a mutual information column (I). If df was not grouped this will be a single entry
 #' @import dplyr
 #' @export
 calculateDiscreteContinuousMI_KNN = function(df, discreteVars, continuousVar, k_05=4L, useKWindow = TRUE,...) {
